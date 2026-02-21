@@ -5,6 +5,10 @@
     <ProjectReference Include="..\MACHTEN.Infrastructure\MACHTEN.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="FastEndpoints.Swagger" Version="7.2.0" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
