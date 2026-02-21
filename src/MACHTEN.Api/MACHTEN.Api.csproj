@@ -7,6 +7,12 @@
 
   <ItemGroup>
     <PackageReference Include="FastEndpoints.Swagger" Version="7.2.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.3" />
+    <PackageReference Include="WolverineFx" Version="5.16.2" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
-using MACHTEN.Api.Features.CreateProduct;
+using MACHTEN.Api.Features.Products.CreateProduct;
 
 namespace MACHTEN.Api;
 
-[JsonSerializable(typeof(CreateProductRequest))]
+[JsonSerializable(typeof(CreateProductCommand))]
 [JsonSerializable(typeof(CreateProductResponse))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
