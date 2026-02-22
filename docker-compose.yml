@@ -10,10 +10,10 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=MachtenDb;User Id=sa;Password=MachTen_P@ss!;TrustServerCertificate=True
-      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__Redis=garnet:6379
     depends_on:
       - sqlserver
-      - redis
+      - garnet
     networks:
       - machten-net
 
@@ -29,13 +29,12 @@ services:
     networks:
       - machten-net
 
-  redis:
-    image: redis:7-alpine
+  garnet:
+    image: ghcr.io/microsoft/garnet:latest
     ports:
       - "6379:6379"
-    command: redis-server --save 60 1 --loglevel warning
     volumes:
-      - redis-data:/data
+      - garnet-data:/data
     networks:
       - machten-net
 
@@ -85,7 +84,7 @@ services:
 
 volumes:
   sqlserver-data:
-  redis-data:
+  garnet-data:
   prometheus-data:
   grafana-data:
   kafka-data:
