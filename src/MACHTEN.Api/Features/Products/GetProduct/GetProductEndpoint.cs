@@ -1,20 +1,14 @@
 using FastEndpoints;
-using MACHTEN.Api.Infrastructure.Caching;
-using MACHTEN.Api.Persistence;
-using Microsoft.EntityFrameworkCore;
+using MACHTEN.Application.Features.Products.GetProduct;
+using Wolverine;
 
 namespace MACHTEN.Api.Features.Products.GetProduct;
 
 public sealed class GetProductEndpoint : Endpoint<GetProductRequest, GetProductResponse>
 {
-    private readonly MachtenCacheService _cache;
-    private readonly MachtenDbContext _db;
+    private readonly IMessageBus _bus;
 
-    public GetProductEndpoint(MachtenCacheService cache, MachtenDbContext db)
-    {
-        _cache = cache;
-        _db = db;
-    }
+    public GetProductEndpoint(IMessageBus bus) => _bus = bus;
 
     public override void Configure()
     {
@@ -23,36 +17,13 @@ public sealed class GetProductEndpoint : Endpoint<GetProductRequest, GetProductR
         Summary(s =>
         {
             s.Summary = "Get a product by ID";
-            s.Description = "Retrieves a product from cache (L1/L2) or falls back to database.";
+            s.Description = "Retrieves a product by its unique identifier.";
         });
     }
 
     public override async Task HandleAsync(GetProductRequest req, CancellationToken ct)
     {
-        // State-based factory avoids closure allocation over _db and req.Id
-        var result = await _cache.GetOrCreateAsync(
-            key: $"product:{req.Id}",
-            state: (_db, req.Id),
-            factory: static async (state, token) =>
-            {
-                var (db, productId) = state;
-                var product = await db.Products
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Id == productId, token);
-
-                if (product is null)
-                    return null!;
-
-                return new GetProductResponse(
-                    product.Id,
-                    product.Name,
-                    product.Description,
-                    product.Price,
-                    product.CreatedAtUtc);
-            },
-            expiration: TimeSpan.FromMinutes(10),
-            localExpiration: TimeSpan.FromMinutes(2),
-            ct: ct);
+        var result = await _bus.InvokeAsync<GetProductResponse?>(new GetProductQuery(req.Id), ct);
 
         if (result is null)
         {
@@ -62,4 +33,9 @@ public sealed class GetProductEndpoint : Endpoint<GetProductRequest, GetProductR
 
         await Send.OkAsync(result, ct);
     }
+}
+
+public sealed class GetProductRequest
+{
+    public required Guid Id { get; init; }
 }

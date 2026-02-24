@@ -1,4 +1,5 @@
 using FastEndpoints;
+using MACHTEN.Application.Features.Products.CreateProduct;
 using Wolverine;
 
 namespace MACHTEN.Api.Features.Products.CreateProduct;

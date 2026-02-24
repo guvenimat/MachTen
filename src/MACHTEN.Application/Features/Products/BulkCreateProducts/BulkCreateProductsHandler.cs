@@ -1,14 +1,14 @@
 using System.Diagnostics;
-using MACHTEN.Api.Persistence;
+using MACHTEN.Application.Contracts.Persistence;
 using MACHTEN.Domain.Entities;
 
-namespace MACHTEN.Api.Features.Products.BulkCreateProducts;
+namespace MACHTEN.Application.Features.Products.BulkCreateProducts;
 
 public static class BulkCreateProductsHandler
 {
     public static async Task<BulkCreateProductsResponse> HandleAsync(
         BulkCreateProductsCommand command,
-        MachtenDbContext db,
+        IApplicationDbContext db,
         CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();

@@ -1,5 +1,5 @@
 using FastEndpoints;
-using MACHTEN.Api.Infrastructure.Logging;
+using MACHTEN.Application.Features.Products.BulkCreateProducts;
 using Wolverine;
 
 namespace MACHTEN.Api.Features.Products.BulkCreateProducts;
@@ -7,13 +7,8 @@ namespace MACHTEN.Api.Features.Products.BulkCreateProducts;
 public sealed class BulkCreateProductsEndpoint : Endpoint<BulkCreateProductsCommand, BulkCreateProductsResponse>
 {
     private readonly IMessageBus _bus;
-    private readonly ILogger<BulkCreateProductsEndpoint> _logger;
 
-    public BulkCreateProductsEndpoint(IMessageBus bus, ILogger<BulkCreateProductsEndpoint> logger)
-    {
-        _bus = bus;
-        _logger = logger;
-    }
+    public BulkCreateProductsEndpoint(IMessageBus bus) => _bus = bus;
 
     public override void Configure()
     {
@@ -22,16 +17,13 @@ public sealed class BulkCreateProductsEndpoint : Endpoint<BulkCreateProductsComm
         Summary(s =>
         {
             s.Summary = "Bulk create products";
-            s.Description = "Inserts multiple products in a single EF Core batch. Returns count and elapsed time for benchmarking.";
+            s.Description = "Inserts multiple products in a single batch. Returns count and elapsed time.";
         });
     }
 
     public override async Task HandleAsync(BulkCreateProductsCommand req, CancellationToken ct)
     {
         var result = await _bus.InvokeAsync<BulkCreateProductsResponse>(req, ct);
-
-        _logger.LogProductsListed(result.InsertedCount);
-
         await Send.OkAsync(result, ct);
     }
 }

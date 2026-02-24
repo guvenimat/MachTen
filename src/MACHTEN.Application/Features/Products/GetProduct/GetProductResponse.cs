@@ -1,4 +1,4 @@
-namespace MACHTEN.Api.Features.Products.GetProduct;
+namespace MACHTEN.Application.Features.Products.GetProduct;
 
 public sealed record GetProductResponse(
     Guid Id,

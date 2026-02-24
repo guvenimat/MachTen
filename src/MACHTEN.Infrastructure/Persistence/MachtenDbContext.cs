@@ -1,9 +1,11 @@
+using MACHTEN.Application.Contracts.Persistence;
 using MACHTEN.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace MACHTEN.Api.Persistence;
+namespace MACHTEN.Infrastructure.Persistence;
 
-public sealed class MachtenDbContext(DbContextOptions<MachtenDbContext> options) : DbContext(options)
+public sealed class MachtenDbContext(DbContextOptions<MachtenDbContext> options)
+    : DbContext(options), IApplicationDbContext
 {
     public DbSet<Product> Products => Set<Product>();
 

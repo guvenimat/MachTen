@@ -1,39 +1,14 @@
 using FastEndpoints;
-using MACHTEN.Api.Infrastructure.Logging;
-using MACHTEN.Api.Persistence;
-using MACHTEN.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
+using MACHTEN.Application.Features.Products.GetProducts;
+using Wolverine;
 
 namespace MACHTEN.Api.Features.Products.GetProducts;
 
 public sealed class GetProductsEndpoint : EndpointWithoutRequest<List<GetProductsResponse>>
 {
-    private readonly MachtenDbContext _db;
-    private readonly ILogger<GetProductsEndpoint> _logger;
+    private readonly IMessageBus _bus;
 
-    // Pre-compiled query: completely bypasses LINQ-to-SQL translation on every call.
-    // The expression tree is compiled once and reused, eliminating repeated query
-    // planning overhead. Combined with AsNoTracking + Select projection, this is
-    // the fastest path EF Core can offer for read-heavy endpoints.
-    private static readonly Func<MachtenDbContext, int, int, IAsyncEnumerable<GetProductsResponse>>
-        CompiledGetProducts = EF.CompileAsyncQuery(
-            (MachtenDbContext ctx, int skip, int take) =>
-                ctx.Products
-                    .AsNoTracking()
-                    .OrderByDescending(p => p.CreatedAtUtc)
-                    .Skip(skip)
-                    .Take(take)
-                    .Select(p => new GetProductsResponse(
-                        p.Id,
-                        p.Name,
-                        p.Price,
-                        p.CreatedAtUtc)));
-
-    public GetProductsEndpoint(MachtenDbContext db, ILogger<GetProductsEndpoint> logger)
-    {
-        _db = db;
-        _logger = logger;
-    }
+    public GetProductsEndpoint(IMessageBus bus) => _bus = bus;
 
     public override void Configure()
     {
@@ -42,7 +17,7 @@ public sealed class GetProductsEndpoint : EndpointWithoutRequest<List<GetProduct
         Summary(s =>
         {
             s.Summary = "List products";
-            s.Description = "Returns a paginated list of products using a pre-compiled EF Core query.";
+            s.Description = "Returns a paginated list of products.";
         });
     }
 
@@ -51,18 +26,12 @@ public sealed class GetProductsEndpoint : EndpointWithoutRequest<List<GetProduct
         var page = Query<int>("page", isRequired: false);
         var pageSize = Query<int>("pageSize", isRequired: false);
 
-        var skip = (Math.Max(page, 1) - 1) * Math.Clamp(pageSize, 1, 100);
-        var take = Math.Clamp(pageSize == 0 ? 20 : pageSize, 1, 100);
+        var query = new GetProductsQuery(
+            Page: page == 0 ? 1 : page,
+            PageSize: pageSize == 0 ? 20 : pageSize);
 
-        var results = new List<GetProductsResponse>(take);
+        var result = await _bus.InvokeAsync<List<GetProductsResponse>>(query, ct);
 
-        await foreach (var item in CompiledGetProducts(_db, skip, take).WithCancellation(ct))
-        {
-            results.Add(item);
-        }
-
-        _logger.LogProductsListed(results.Count);
-
-        await Send.OkAsync(results, ct);
+        await Send.OkAsync(result, ct);
     }
 }

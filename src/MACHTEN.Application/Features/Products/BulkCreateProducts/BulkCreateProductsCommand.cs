@@ -1,5 +1,5 @@
 using MACHTEN.Application.DTOs;
 
-namespace MACHTEN.Api.Features.Products.BulkCreateProducts;
+namespace MACHTEN.Application.Features.Products.BulkCreateProducts;
 
 public sealed record BulkCreateProductsCommand(IReadOnlyList<BulkProductInsertDto> Products);

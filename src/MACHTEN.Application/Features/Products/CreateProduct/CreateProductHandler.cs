@@ -1,13 +1,13 @@
-using MACHTEN.Api.Persistence;
+using MACHTEN.Application.Contracts.Persistence;
 using MACHTEN.Domain.Entities;
 
-namespace MACHTEN.Api.Features.Products.CreateProduct;
+namespace MACHTEN.Application.Features.Products.CreateProduct;
 
-public static class CreateProductCommandHandler
+public static class CreateProductHandler
 {
     public static async Task<CreateProductResponse> HandleAsync(
         CreateProductCommand command,
-        MachtenDbContext db,
+        IApplicationDbContext db,
         CancellationToken ct)
     {
         var product = Product.Create(command.Name, command.Description, command.Price);

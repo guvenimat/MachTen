@@ -1,4 +1,4 @@
-namespace MACHTEN.Api.Features.Products.CreateProduct;
+namespace MACHTEN.Application.Features.Products.CreateProduct;
 
 public sealed record CreateProductCommand(
     string Name,
