@@ -1,6 +1,6 @@
 namespace MACHTEN.Application.Contracts;
 
-public interface ICacheService
+public interface ICacheStore
 {
     ValueTask<T> GetOrCreateAsync<TState, T>(
         string key,

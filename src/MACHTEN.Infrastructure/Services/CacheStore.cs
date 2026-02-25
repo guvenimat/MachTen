@@ -3,7 +3,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 
 namespace MACHTEN.Infrastructure.Services;
 
-public sealed class CacheService(HybridCache cache) : ICacheService
+public sealed class CacheStore(HybridCache cache) : ICacheStore
 {
     public ValueTask<T> GetOrCreateAsync<TState, T>(
         string key,
