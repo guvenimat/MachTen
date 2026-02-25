@@ -10,7 +10,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=MachtenDb;User Id=sa;Password=MachTen_P@ss!;TrustServerCertificate=True
-      - ConnectionStrings__Redis=garnet:6379
+      - ConnectionStrings__Cache=garnet:6379
     depends_on:
       - sqlserver
       - garnet

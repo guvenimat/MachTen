@@ -20,10 +20,10 @@ builder.Services.AddDbContextPool<MachtenDbContext>(opts =>
     opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<MachtenDbContext>());
 
-// ── Caching: L2 distributed store (Garnet/Redis-compatible) ──
+// ── Caching: L2 distributed store (Microsoft Garnet) ──
 builder.Services.AddStackExchangeRedisCache(opts =>
 {
-    opts.Configuration = builder.Configuration.GetConnectionString("Redis");
+    opts.Configuration = builder.Configuration.GetConnectionString("Cache");
     opts.InstanceName = "machten:";
 });
 
