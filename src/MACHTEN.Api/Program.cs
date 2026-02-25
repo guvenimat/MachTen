@@ -36,7 +36,7 @@ builder.Services.AddHybridCache(opts =>
         LocalCacheExpiration = TimeSpan.FromMinutes(1)
     };
 });
-builder.Services.AddSingleton<MACHTEN.Application.Contracts.ICacheStore, MACHTEN.Infrastructure.Services.CacheStore>();
+builder.Services.AddSingleton<MACHTEN.Application.Contracts.ICacheStore, MACHTEN.Infrastructure.Caching.CacheStore>();
 
 // ── Global Exception Handling ──
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();

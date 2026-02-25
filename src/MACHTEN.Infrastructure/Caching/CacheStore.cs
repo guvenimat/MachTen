@@ -1,7 +1,7 @@
 using MACHTEN.Application.Contracts;
 using Microsoft.Extensions.Caching.Hybrid;
 
-namespace MACHTEN.Infrastructure.Services;
+namespace MACHTEN.Infrastructure.Caching;
 
 public sealed class CacheStore(HybridCache cache) : ICacheStore
 {
