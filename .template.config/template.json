@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Guven Imat",
+  "classifications": [ "Web", "WebAPI", "Clean Architecture", "Vertical Slice" ],
+  "identity": "MachTen.ApiTemplate",
+  "name": "MachTen API (Clean Architecture + Vertical Slice)",
+  "shortName": "machten",
+  "description": "Performans odaklı, tamamen ücretsiz/OSS kütüphanelerle kurulmuş .NET 10 API template'i: FastEndpoints, Wolverine, EF Core, HybridCache + Garnet, OpenTelemetry, health checks ve hazır test altyapısı.",
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+  "sourceName": "MACHTEN",
+  "preferNameDirectory": true,
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            "**/bin/**",
+            "**/obj/**",
+            "**/.vs/**",
+            "**/.git/**",
+            ".env"
+          ]
+        }
+      ]
+    }
+  ],
+  "symbols": {
+    "lowercaseName": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "lowerCase",
+      "replaces": "machten",
+      "fileRename": "machten"
+    },
+    "pascalName": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "firstUpperCase",
+      "replaces": "Machten",
+      "fileRename": "Machten"
+    }
+  }
+}
