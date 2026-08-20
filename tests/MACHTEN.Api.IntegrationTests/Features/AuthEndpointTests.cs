@@ -10,7 +10,8 @@ namespace MACHTEN.Api.IntegrationTests.Features;
 /// Exercises the full loop: OpenIddict issues a token at /connect/token and the
 /// JWT Bearer handler validates it on a protected endpoint.
 /// </summary>
-public class AuthEndpointTests(MachtenApiFactory factory) : IClassFixture<MachtenApiFactory>
+[Collection(IntegrationTestCollection.Name)]
+public class AuthEndpointTests(MachtenApiFactory factory)
 {
     [Fact]
     public async Task Me_ReturnsUnauthorized_WithoutToken()

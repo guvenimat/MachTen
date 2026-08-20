@@ -8,12 +8,24 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MACHTEN.Api.IntegrationTests.Features;
 
-public class OrderEndpointTests(MachtenApiFactory factory) : IClassFixture<MachtenApiFactory>
+[Collection(IntegrationTestCollection.Name)]
+public class OrderEndpointTests(MachtenApiFactory factory)
 {
+    /// <summary>
+    /// The "writes" limiter partitions on X-Client-Id, so giving each test its
+    /// own id keeps the burst test from spending the budget the others need.
+    /// </summary>
+    private HttpClient CreateClient(string clientId)
+    {
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Client-Id", clientId);
+        return client;
+    }
+
     [Fact]
     public async Task PlaceOrder_ThenFetch_RoundTripsThroughTheDomain()
     {
-        var client = factory.CreateClient();
+        var client = CreateClient(nameof(PlaceOrder_ThenFetch_RoundTripsThroughTheDomain));
 
         var placed = await client.PostAsJsonAsync("/api/v1/orders",
             new PlaceOrderCommand("acme-42", 19.99m, "try"));
@@ -34,7 +46,7 @@ public class OrderEndpointTests(MachtenApiFactory factory) : IClassFixture<Macht
     [Fact]
     public async Task GetOrder_ReturnsNotFound_ForUnknownId()
     {
-        var client = factory.CreateClient();
+        var client = CreateClient(nameof(GetOrder_ReturnsNotFound_ForUnknownId));
 
         var response = await client.GetAsync($"/api/v1/orders/{Guid.NewGuid()}");
 
@@ -50,7 +62,7 @@ public class OrderEndpointTests(MachtenApiFactory factory) : IClassFixture<Macht
     [Fact]
     public async Task GetOrder_IsServedFromCache_NotTheDatabase()
     {
-        var client = factory.CreateClient();
+        var client = CreateClient(nameof(GetOrder_IsServedFromCache_NotTheDatabase));
 
         var placed = await client.PostAsJsonAsync("/api/v1/orders",
             new PlaceOrderCommand("cache-probe", 10m, "USD"));
@@ -81,7 +93,7 @@ public class OrderEndpointTests(MachtenApiFactory factory) : IClassFixture<Macht
     [Fact]
     public async Task PlaceOrder_IsRateLimited_UnderABurst()
     {
-        var client = factory.CreateClient();
+        var client = CreateClient(nameof(PlaceOrder_IsRateLimited_UnderABurst));
 
         var statuses = new List<HttpStatusCode>();
         for (var i = 0; i < 140; i++)

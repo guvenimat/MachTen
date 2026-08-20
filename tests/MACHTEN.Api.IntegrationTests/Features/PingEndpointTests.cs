@@ -4,7 +4,8 @@ using MACHTEN.Api.Features.Ping;
 
 namespace MACHTEN.Api.IntegrationTests.Features;
 
-public class PingEndpointTests(MachtenApiFactory factory) : IClassFixture<MachtenApiFactory>
+[Collection(IntegrationTestCollection.Name)]
+public class PingEndpointTests(MachtenApiFactory factory)
 {
     [Fact]
     public async Task Get_Ping_ReturnsPong()

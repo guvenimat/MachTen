@@ -200,12 +200,27 @@ builder.Services.AddRateLimiter(opts =>
     opts.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     // Applied by name on the endpoints that need it (see PlaceOrderEndpoint).
     // A policy nothing references is just configuration theatre.
-    opts.AddFixedWindowLimiter("writes", window =>
+    //
+    // Partitioned per caller rather than global: one noisy client should not be
+    // able to spend everyone else's budget.
+    opts.AddPolicy("writes", httpContext =>
     {
-        window.PermitLimit = 100;
-        window.Window = TimeSpan.FromMinutes(1);
-        window.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        window.QueueLimit = 10;
+        var partitionKey =
+            httpContext.Request.Headers["X-Client-Id"].FirstOrDefault()
+            ?? httpContext.User.FindFirst(Claims.Subject)?.Value
+            ?? httpContext.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 100,
+            Window = TimeSpan.FromMinutes(1),
+
+            // No queue: holding a write request for up to a full window is
+            // worse for the caller than a 429 it can retry on. It also keeps
+            // the limiter's behaviour observable instead of just slow.
+            QueueLimit = 0
+        });
     });
 });
 
