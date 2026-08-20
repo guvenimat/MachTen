@@ -7,6 +7,7 @@ using MACHTEN.Api;
 using MACHTEN.Api.Features.Auth;
 using MACHTEN.Api.Infrastructure.Auth;
 using MACHTEN.Api.Infrastructure.Errors;
+using MACHTEN.Api.Infrastructure.Observability;
 using MACHTEN.Application.Contracts.Persistence;
 using MACHTEN.Infrastructure.Identity;
 using MACHTEN.Infrastructure.Persistence;
@@ -29,6 +30,12 @@ using Wolverine.EntityFrameworkCore;
 using Wolverine.Kafka;
 using Wolverine.SqlServer;
 using static OpenIddict.Abstractions.OpenIddictConstants;
+
+// Container HEALTHCHECK path: probe /health and exit, without starting a host.
+if (args.Contains(HealthCheckProbe.Argument))
+{
+    return await HealthCheckProbe.RunAsync(new ConfigurationBuilder().AddEnvironmentVariables().Build());
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -215,6 +222,7 @@ builder.Services.AddOpenTelemetry()
         .SetResourceBuilder(otelResource)
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
         .AddPrometheusExporter());
 
 // ── FastEndpoints ──
@@ -254,6 +262,8 @@ builder.Host.UseWolverine(opts =>
 
 var app = builder.Build();
 
+// First in the pipeline so even failures are traceable.
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseRateLimiter();
@@ -274,6 +284,8 @@ app.UseTickerQ();
 app.MapHealthChecks("/health");
 
 app.Run();
+
+return 0;
 
 // Exposed for WebApplicationFactory<Program> in integration tests.
 public partial class Program;
