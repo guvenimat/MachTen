@@ -1,0 +1,42 @@
+name: Hata bildirimi
+description: Beklenmeyen bir davranış veya hata bildirin
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Ne oldu?
+      description: Beklenen davranış neydi, bunun yerine ne oldu?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Nasıl tekrarlanır?
+      description: Adım adım, mümkünse çalıştırdığınız komutlarla birlikte
+      placeholder: |
+        1. `docker compose up --build`
+        2. `curl http://localhost:5000/api/v1/ping`
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log / hata çıktısı
+      description: İlgili log satırları veya stack trace
+      render: shell
+
+  - type: input
+    id: dotnet-version
+    attributes:
+      label: .NET sürümü
+      placeholder: "dotnet --version çıktısı"
+
+  - type: input
+    id: os
+    attributes:
+      label: İşletim sistemi
+      placeholder: "Windows 11 / Ubuntu 24.04 / macOS 15"

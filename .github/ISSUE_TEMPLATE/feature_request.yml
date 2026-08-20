@@ -1,0 +1,27 @@
+name: Özellik önerisi
+description: Template'e eklenmesini istediğiniz bir özellik veya kütüphane önerin
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Hangi ihtiyacı karşılıyor?
+      description: Çözmek istediğiniz problem veya eksik gördüğünüz şey
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Öneri
+      description: Nasıl çözülmesini öneriyorsunuz? Belirli bir kütüphane varsa adı ve lisansı
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: license-check
+    attributes:
+      label: Lisans kontrolü
+      description: Bu template yalnızca ücretsiz/OSS bağımlılıklar kullanır
+      options:
+        - label: Önerdiğim kütüphane ücretsiz ve OSS lisanslı (MIT/Apache 2.0/BSD vb.), gelir eşiği veya ticari lisans şartı yok

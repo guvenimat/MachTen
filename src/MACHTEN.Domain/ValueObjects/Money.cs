@@ -1,35 +1,31 @@
 namespace MACHTEN.Domain.ValueObjects;
 
-/// <summary>
-/// Zero-allocation DDD value object. As a readonly record struct, it lives entirely
-/// on the stack -- no heap allocation, no GC pressure. Equality and GetHashCode
-/// are compiler-generated from the positional parameters.
-/// </summary>
-public readonly record struct Money(decimal Amount, string Currency)
+public readonly record struct Money
 {
-    public static readonly Money Zero = new(0m, "USD");
+    public decimal Amount { get; }
+    public string Currency { get; }
+
+    public Money(decimal amount, string currency)
+    {
+        if (amount < 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), "Amount cannot be negative.");
+
+        if (string.IsNullOrWhiteSpace(currency) || currency.Length != 3)
+            throw new ArgumentException("Currency must be a 3-letter ISO 4217 code.", nameof(currency));
+
+        Amount = amount;
+        Currency = currency.ToUpperInvariant();
+    }
+
+    public static Money Zero(string currency) => new(0, currency);
 
     public Money Add(Money other)
     {
-        if (!string.Equals(Currency, other.Currency, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"Cannot add {Currency} to {other.Currency}");
+        if (other.Currency != Currency)
+            throw new InvalidOperationException($"Cannot add {other.Currency} to {Currency}.");
 
-        return this with { Amount = Amount + other.Amount };
+        return new Money(Amount + other.Amount, Currency);
     }
 
-    public Money Subtract(Money other)
-    {
-        if (!string.Equals(Currency, other.Currency, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"Cannot subtract {other.Currency} from {Currency}");
-
-        return this with { Amount = Amount - other.Amount };
-    }
-
-    public Money Multiply(decimal factor) => this with { Amount = Amount * factor };
-
-    public static Money operator +(Money left, Money right) => left.Add(right);
-    public static Money operator -(Money left, Money right) => left.Subtract(right);
-    public static Money operator *(Money money, decimal factor) => money.Multiply(factor);
-
-    public override string ToString() => $"{Amount:F2} {Currency}";
+    public override string ToString() => $"{Amount:0.00} {Currency}";
 }
