@@ -14,14 +14,14 @@ body:
     id: proposal
     attributes:
       label: Öneri
-      description: Nasıl çözülmesini öneriyorsunuz? Belirli bir kütüphane varsa adı ve lisansı
+      description: Nasıl çözülmesini öneriyorsunuz? Belirli bir kütüphane öneriyorsanız adı
     validations:
       required: true
 
   - type: checkboxes
-    id: license-check
+    id: aot-check
     attributes:
-      label: Lisans kontrolü
-      description: Bu template yalnızca ücretsiz/OSS bağımlılıklar kullanır
+      label: Uygunluk
+      description: Template kaynak üretimi kullanan, reflection'a dayanmayan araçları tercih eder
       options:
-        - label: Önerdiğim kütüphane ücretsiz ve OSS lisanslı (MIT/Apache 2.0/BSD vb.), gelir eşiği veya ticari lisans şartı yok
+        - label: Önerdiğim kütüphane çalışma zamanında kod üretmiyor ve reflection taramasına dayanmıyor

@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
 
-.NET 10 üzerinde, **yalnızca ücretsiz ve açık kaynak** kütüphanelerle kurulmuş bir API template'i ve referans uygulaması.
+.NET 10 üzerinde kurulmuş, performans odaklı bir API template'i ve referans uygulaması.
 
 ## Bu repo iki işe yarar
 
@@ -19,7 +19,7 @@ dotnet new machten -n SiparisServisi
 
 > Mevcut bir projene bir yapı eklemek istiyorsan doğrudan kataloğa git, ilgili bloğun dosyalarını kopyala. Bloklar birbirine bağımlı değildir.
 
-Her tercihin arkasında bir kısıt var: **hiçbir bağımlılık gelir eşiği veya ticari lisans gerektirmiyor.** MediatR yerine Wolverine, AutoMapper yerine Mapperly, Redis yerine Garnet, IdentityServer yerine OpenIddict, Hangfire yerine TickerQ, FluentAssertions yerine ham xUnit assert, Moq yerine NSubstitute.
+Kütüphane seçimlerinde ortak ölçüt, işi **derleme zamanında** yapabilmek: kaynak üretimi kullanan, açılışta reflection taraması yapmayan ve çalışma zamanında kod üretmeyen araçlar tercih edildi.
 
 ---
 
@@ -66,9 +66,9 @@ Süreç içi bellek + dağıtık cache'i tek arayüzün arkasında birleştirir.
 | **Dosyalar** | `Application/Contracts/ICacheStore.cs`, `Application/Contracts/CacheKeys.cs`, `Infrastructure/Caching/CacheStore.cs` |
 | **Kullanım örneği** | `Application/Features/Orders/GetOrder/GetOrderHandler.cs` |
 | **Paketler** | `Microsoft.Extensions.Caching.Hybrid`, `Microsoft.Extensions.Caching.StackExchangeRedis` |
-| **Altyapı** | Garnet (Redis protokolü uyumlu, MIT) — `docker-compose.yml` |
+| **Altyapı** | Garnet (Redis protokolü uyumlu) — `docker-compose.yml` |
 
-**Neden Garnet:** Redis Mart 2024'te RSALv2/SSPLv2'ye geçti ve artık OSI onaylı açık kaynak değil. Garnet Microsoft'un MIT lisanslı, protokol uyumlu alternatifi — istemci kütüphaneleri aynen çalışır.
+**Neden Garnet:** Microsoft'un Redis protokolüyle uyumlu sunucusu; istemci kütüphaneleri aynen çalışır, tek satır kod değişmeden Redis'le yer değiştirebilir.
 
 **Neden `ICacheStore` soyutlaması:** `HybridCache` doğrudan Application katmanında kullanılsaydı, use case'ler bir altyapı tipine bağlanırdı. Arayüz sayesinde Application katmanı cache'in nerede olduğunu bilmez.
 
@@ -87,7 +87,7 @@ Cron ve zaman tabanlı işler; zamanlama ve çalışma geçmişi veritabanında.
 | **Dosyalar** | `Api/Jobs/HeartbeatJob.cs`, `Api/Program.cs` içindeki `AddTickerQ` bloğu |
 | **Paketler** | `TickerQ`, `TickerQ.EntityFrameworkCore` |
 
-**Neden TickerQ:** Hangfire'ın ücretsiz katmanı sınırlı, Quartz bu ölçek için ağır. TickerQ işleri **source generator** ile kaydeder — açılışta reflection taraması yok.
+**Neden TickerQ:** İşleri **source generator** ile kaydeder — açılışta reflection taraması yok, kayıt derleme zamanında doğrulanır. Quartz bu ölçek için ağır kalıyor.
 
 > **Tuzak — iş metodu `Task` döndürmeli.** `void` dönen bir `[TickerFunction]` metodu, source generator'ın ürettiği kodda derleme hatası verir (`CS1643`) ve hata mesajı üretilen dosyayı işaret ettiği için nedeni anlaşılmaz.
 
@@ -105,7 +105,7 @@ Token üreten yetkilendirme sunucusu (`client_credentials`, `password`, `refresh
 | **Yapılandırma** | `Api/Program.cs` → Identity / OpenIddict / JWT Bearer blokları |
 | **Paketler** | `OpenIddict.AspNetCore`, `OpenIddict.EntityFrameworkCore`, `Microsoft.AspNetCore.Identity.EntityFrameworkCore`, `Microsoft.AspNetCore.Authentication.JwtBearer` |
 
-**Neden OpenIddict:** Duende IdentityServer belirli gelir eşiğinin üstünde ticari lisans istiyor; OpenIddict Apache 2.0 ve sınırsız.
+**Neden OpenIddict:** Standartlara uygun tam bir OAuth2/OIDC sunucusu; kendi kullanıcı deponla ve ASP.NET Core Identity ile birlikte çalışıyor.
 
 Bu blok en çok tuzak barındıran yer — dördü de gerçekten başıma geldi ve testler yakaladı:
 
@@ -132,7 +132,7 @@ Domain event'i, onu doğuran veritabanı işlemiyle **aynı transaction içinde*
 | **Dosyalar** | `Domain/Events/IDomainEvent.cs`, `Domain/Events/OrderPlaced.cs`, `Domain/Entities/Order.cs` (event kaydı), `Api/Program.cs` → Wolverine bloğu |
 | **Paketler** | `WolverineFx`, `WolverineFx.SqlServer`, `WolverineFx.EntityFrameworkCore`, `WolverineFx.Kafka` |
 
-**Neden Wolverine:** MediatR v13'ten beri gelir eşiği üstünde ticari lisans istiyor. Wolverine MIT, handler'ları derleme zamanında bağlıyor ve outbox'ı kutudan çıkıyor.
+**Neden Wolverine:** Handler'ları derleme zamanında bağlıyor ve dayanıklı outbox'ı kutudan çıkıyor — ayrı bir mesajlaşma altyapısı kurmaya gerek kalmıyor.
 
 **Neden outbox:** "Kaydet, sonra mesaj yayınla" yaklaşımında iki adım arasında süreç ölürse mesaj kaybolur; sıra ters çevrilirse geri alınan bir işlem için mesaj yayınlanır. Outbox ikisini tek transaction'a alır.
 

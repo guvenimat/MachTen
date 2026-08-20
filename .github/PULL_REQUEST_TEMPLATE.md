@@ -11,7 +11,7 @@
 - [ ] `dotnet build MACHTEN.sln` uyarısız geçiyor
 - [ ] İlgili katmanda test eklendi/güncellendi (bkz. [CONTRIBUTING.md](../CONTRIBUTING.md))
 - [ ] `dotnet test` yerelde geçiyor
-- [ ] Yeni bir NuGet paketi eklendiyse lisansı ücretsiz/OSS (gelir eşiği veya ticari lisans şartı yok)
+- [ ] Yeni bir NuGet paketi eklendiyse mimari testler hâlâ geçiyor
 - [ ] Gerekiyorsa README güncellendi
 
 ## Nasıl test edildi?
