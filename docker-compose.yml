@@ -11,9 +11,11 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=MachtenDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True
       - ConnectionStrings__Cache=garnet:6379
+      - ConnectionStrings__Kafka=kafka:9092
     depends_on:
       - sqlserver
       - garnet
+      - kafka
     networks:
       - machten-net
 

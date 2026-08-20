@@ -26,7 +26,10 @@
     <PackageReference Include="TickerQ" Version="10.4.0" />
     <PackageReference Include="TickerQ.Dashboard" Version="10.4.0" />
     <PackageReference Include="TickerQ.EntityFrameworkCore" Version="10.4.0" />
-    <PackageReference Include="WolverineFx" Version="5.16.2" />
+    <PackageReference Include="WolverineFx" Version="6.29.1" />
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" Version="6.29.1" />
+    <PackageReference Include="WolverineFx.Kafka" Version="6.29.1" />
+    <PackageReference Include="WolverineFx.SqlServer" Version="6.29.1" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -1,4 +1,5 @@
 using MACHTEN.Application.Contracts.Persistence;
+using MACHTEN.Domain.Entities;
 using MACHTEN.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -15,6 +16,8 @@ namespace MACHTEN.Infrastructure.Persistence;
 public sealed class MachtenDbContext(DbContextOptions<MachtenDbContext> options)
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options), IApplicationDbContext
 {
+    public DbSet<Order> Orders => Set<Order>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -24,7 +27,6 @@ public sealed class MachtenDbContext(DbContextOptions<MachtenDbContext> options)
         // OpenIddict's and silently drop its tables from migrations.
         modelBuilder.UseOpenIddict();
 
-        // Register application entities here as features are added, e.g.:
-        // modelBuilder.Entity<MyEntity>(entity => { ... });
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(MachtenDbContext).Assembly);
     }
 }
