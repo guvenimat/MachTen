@@ -42,6 +42,19 @@ public sealed class MachtenApiFactory : WebApplicationFactory<Program>, IAsyncLi
     {
         await _sqlContainer.StartAsync();
         await _redisContainer.StartAsync();
+
+        // Set as environment variables, not just through ConfigureAppConfiguration.
+        //
+        // Program.cs reads some connection strings eagerly - Wolverine's message
+        // store is configured before builder.Build() - and ConfigureAppConfiguration
+        // contributions are not applied until the host is built. Those eager reads
+        // would otherwise see appsettings.json ("Server=localhost", named pipes)
+        // and fail to reach the container.
+        Environment.SetEnvironmentVariable(
+            "ConnectionStrings__DefaultConnection", _sqlContainer.GetConnectionString());
+        Environment.SetEnvironmentVariable(
+            "ConnectionStrings__Cache", _redisContainer.GetConnectionString());
+        Environment.SetEnvironmentVariable("ConnectionStrings__Kafka", string.Empty);
     }
 
     async Task IAsyncLifetime.DisposeAsync()

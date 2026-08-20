@@ -266,7 +266,6 @@ Development'ta `AuthSeeder` açılışta migration'ları kendisi uygular.
 ## Bilinen sınırlar
 
 - **Native AOT kapalı** — EF Core engeli yüzünden; yukarıdaki araştırma bölümüne bak.
-- **Entegrasyon testleri bu makinede henüz koşulmadı** — Docker duraklatılmış durumda. Yazıldılar ve derleniyorlar; CI'da çalışacaklar.
 - **Kafka broker'ı compose'da tanımlı** ve outbox ona yayın yapıyor; tüketici tarafı yazılmadı.
 - **FastEndpoints** 2026'da "yalnızca hata düzeltme" moduna geçebileceğini duyurdu. Uzun ömür kritikse Minimal API + RDG'ye geçiş düşünülmeli.
 - `/health` SQL Server'ı `master` üzerinden kontrol eder; uygulama veritabanı henüz oluşmamışsa bu kontrolü etkilemez.

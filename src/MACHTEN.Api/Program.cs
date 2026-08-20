@@ -24,6 +24,8 @@ using TickerQ.DependencyInjection;
 using TickerQ.EntityFrameworkCore;
 using TickerQ.EntityFrameworkCore.Customizer;
 using TickerQ.EntityFrameworkCore.DependencyInjection;
+using JasperFx.CodeGeneration.Model;
+using MACHTEN.Application.Features.Orders.PlaceOrder;
 using MACHTEN.Domain.Events;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
@@ -254,6 +256,17 @@ builder.Services.SwaggerDocument(o =>
 // ── Wolverine: handlers, transactional outbox, Kafka ──
 builder.Host.UseWolverine(opts =>
 {
+    // Handlers live in the Application layer; Wolverine only scans the entry
+    // assembly by default and would silently find none.
+    opts.Discovery.IncludeAssembly(typeof(PlaceOrderCommand).Assembly);
+
+    // IApplicationDbContext is registered as a lambda so it hands back the same
+    // pooled MachtenDbContext instance. Wolverine 6 cannot read through that to
+    // generate a direct constructor call, and disallows service location by
+    // default. Allowing it costs one container lookup per message and keeps both
+    // the pooling and the layering intact.
+    opts.ServiceLocationPolicy = ServiceLocationPolicy.AlwaysAllowed;
+
     // Durable outbox on the same SQL Server the app already uses: an
     // OrderPlaced message is written inside the order's transaction, so it can
     // never be published for an order that rolled back, nor lost after commit.
