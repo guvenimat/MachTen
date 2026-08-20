@@ -28,7 +28,12 @@ public sealed class MachtenApiFactory : WebApplicationFactory<Program>, IAsyncLi
             config.AddInMemoryCollection(
             [
                 new("ConnectionStrings:DefaultConnection", _sqlContainer.GetConnectionString()),
-                new("ConnectionStrings:Cache", _redisContainer.GetConnectionString())
+                new("ConnectionStrings:Cache", _redisContainer.GetConnectionString()),
+
+                // Blank disables the Kafka transport (Program.cs treats an empty
+                // value as "not configured"). Messages still flow through the
+                // durable outbox; OutboxTests spins up a real broker separately.
+                new("ConnectionStrings:Kafka", string.Empty)
             ]);
         });
     }

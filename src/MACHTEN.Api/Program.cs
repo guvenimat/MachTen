@@ -7,6 +7,7 @@ using MACHTEN.Api;
 using MACHTEN.Api.Features.Auth;
 using MACHTEN.Api.Infrastructure.Auth;
 using MACHTEN.Api.Infrastructure.Errors;
+using MACHTEN.Api.Infrastructure.Observability;
 using MACHTEN.Application.Contracts.Persistence;
 using MACHTEN.Infrastructure.Identity;
 using MACHTEN.Infrastructure.Persistence;
@@ -23,8 +24,18 @@ using TickerQ.DependencyInjection;
 using TickerQ.EntityFrameworkCore;
 using TickerQ.EntityFrameworkCore.Customizer;
 using TickerQ.EntityFrameworkCore.DependencyInjection;
+using MACHTEN.Domain.Events;
 using Wolverine;
+using Wolverine.EntityFrameworkCore;
+using Wolverine.Kafka;
+using Wolverine.SqlServer;
 using static OpenIddict.Abstractions.OpenIddictConstants;
+
+// Container HEALTHCHECK path: probe /health and exit, without starting a host.
+if (args.Contains(HealthCheckProbe.Argument))
+{
+    return await HealthCheckProbe.RunAsync(new ConfigurationBuilder().AddEnvironmentVariables().Build());
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -187,7 +198,9 @@ builder.Services.AddHealthChecks()
 builder.Services.AddRateLimiter(opts =>
 {
     opts.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    opts.AddFixedWindowLimiter("fixed", window =>
+    // Applied by name on the endpoints that need it (see PlaceOrderEndpoint).
+    // A policy nothing references is just configuration theatre.
+    opts.AddFixedWindowLimiter("writes", window =>
     {
         window.PermitLimit = 100;
         window.Window = TimeSpan.FromMinutes(1);
@@ -209,6 +222,7 @@ builder.Services.AddOpenTelemetry()
         .SetResourceBuilder(otelResource)
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
         .AddPrometheusExporter());
 
 // ── FastEndpoints ──
@@ -222,11 +236,34 @@ builder.Services.SwaggerDocument(o =>
     };
 });
 
-// ── Wolverine ──
-builder.Host.UseWolverine();
+// ── Wolverine: handlers, transactional outbox, Kafka ──
+builder.Host.UseWolverine(opts =>
+{
+    // Durable outbox on the same SQL Server the app already uses: an
+    // OrderPlaced message is written inside the order's transaction, so it can
+    // never be published for an order that rolled back, nor lost after commit.
+    opts.PersistMessagesWithSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection")!,
+        "wolverine");
+
+    opts.UseEntityFrameworkCoreTransactions();
+    opts.Policies.UseDurableLocalQueues();
+
+    var kafka = builder.Configuration.GetConnectionString("Kafka");
+    if (!string.IsNullOrWhiteSpace(kafka))
+    {
+        opts.UseKafka(kafka).AutoProvision();
+
+        opts.PublishMessage<OrderPlaced>()
+            .ToKafkaTopic("machten.orders.placed")
+            .UseDurableOutbox();
+    }
+});
 
 var app = builder.Build();
 
+// First in the pipeline so even failures are traceable.
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseRateLimiter();
@@ -247,6 +284,8 @@ app.UseTickerQ();
 app.MapHealthChecks("/health");
 
 app.Run();
+
+return 0;
 
 // Exposed for WebApplicationFactory<Program> in integration tests.
 public partial class Program;

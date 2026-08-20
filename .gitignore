@@ -95,3 +95,6 @@ $RECYCLE.BIN/
 *.bak
 *.swp
 CodeCoverage/
+
+## BenchmarkDotNet ##
+BenchmarkDotNet.Artifacts/
