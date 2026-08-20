@@ -12,6 +12,7 @@ namespace MACHTEN.Application.Mapping;
 [Mapper]
 public static partial class OrderMapper
 {
+    [MapperIgnoreSource(nameof(Order.DomainEvents))]
     [MapProperty([nameof(Order.Total), nameof(Order.Total.Amount)], [nameof(OrderDto.Amount)])]
     [MapProperty([nameof(Order.Total), nameof(Order.Total.Currency)], [nameof(OrderDto.Currency)])]
     [MapProperty([nameof(Order.Total), nameof(Order.Total.Formatted)], [nameof(OrderDto.Formatted)])]
