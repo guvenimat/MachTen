@@ -12,6 +12,10 @@ using Microsoft.Extensions.Caching.Hybrid;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using TickerQ.DependencyInjection;
+using TickerQ.EntityFrameworkCore;
+using TickerQ.EntityFrameworkCore.Customizer;
+using TickerQ.EntityFrameworkCore.DependencyInjection;
 using Wolverine;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +24,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContextPool<MachtenDbContext>(opts =>
     opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<MachtenDbContext>());
+
+// ── Background jobs (TickerQ) ──
+// Jobs are discovered by source generator, not reflection. The operational
+// store keeps schedules and run history in the app database; UseModelCustomizer
+// wires its schema in at design time only, so the runtime model stays clean.
+builder.Services.AddTickerQ(opts =>
+    opts.AddOperationalStore(efOpts =>
+        efOpts.UseApplicationDbContext<MachtenDbContext>(ConfigurationType.UseModelCustomizer)));
 
 // ── Caching: L2 distributed store (Microsoft Garnet) ──
 builder.Services.AddStackExchangeRedisCache(opts =>
@@ -112,6 +124,7 @@ app.UseFastEndpoints(c =>
 });
 app.UseSwaggerGen();
 app.MapPrometheusScrapingEndpoint();
+app.UseTickerQ();
 app.MapHealthChecks("/health");
 
 app.Run();
