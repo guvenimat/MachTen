@@ -13,4 +13,7 @@ public static partial class LoggerMessageDefinitions
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Cache miss for key: {CacheKey}")]
     public static partial void LogCacheMiss(this ILogger logger, string cacheKey);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Heartbeat job ran at {RanAtUtc}")]
+    public static partial void LogHeartbeat(this ILogger logger, DateTimeOffset ranAtUtc);
 }

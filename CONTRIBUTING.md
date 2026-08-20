@@ -35,4 +35,4 @@ MACHTEN.Application/Features/<Ad>/  (Command veya Query + Handler + Response)
 MACHTEN.Api/Features/<Ad>/          (Endpoint + Validator)
 ```
 
-`Features/Echo` klasörü, validasyonlu bir örnek olarak referans alınabilir.
+`Features/Money` klasörü referans alınabilir: validasyon, domain value object ve Mapperly ile eşleme bir arada.

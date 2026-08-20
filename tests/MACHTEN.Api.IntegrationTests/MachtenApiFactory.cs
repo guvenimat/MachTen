@@ -11,8 +11,18 @@ public sealed class MachtenApiFactory : WebApplicationFactory<Program>, IAsyncLi
     private readonly MsSqlContainer _sqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
     private readonly RedisContainer _redisContainer = new RedisBuilder("redis:7").Build();
 
+    /// <summary>Credentials the AuthSeeder registers on startup.</summary>
+    public const string ClientId = "machten-sample-client";
+    public const string ClientSecret = "machten-sample-secret";
+    public const string UserEmail = "demo@machten.local";
+    public const string UserPassword = "Demo_P@ssw0rd!";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Development runs AuthSeeder, which migrates the container database and
+        // registers the demo client/user the auth tests sign in with.
+        builder.UseEnvironment("Development");
+
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(

@@ -117,6 +117,13 @@ dotnet_diagnostic.CA2016.severity = warning
 # CA2254: Template should be static expression (logging)
 dotnet_diagnostic.CA2254.severity = warning
 
+# ── EF Core generated migrations ──
+# Scaffolded by `dotnet ef`; hand-edits are lost on regeneration, so style and
+# performance analyzers are not meaningful here.
+[**/Migrations/*.cs]
+generated_code = true
+dotnet_diagnostic.CA1861.severity = none
+
 # ── Solution files ──
 [*.sln]
 indent_style = tab
