@@ -18,66 +18,66 @@ public class LayeringTests
     private const string InfrastructureNamespace = "MACHTEN.Infrastructure";
     private const string ApiNamespace = "MACHTEN.Api";
 
-    [Fact]
-    public void Domain_DoesNotDependOnAnyOtherLayer()
+    [Test]
+    public async Task Domain_DoesNotDependOnAnyOtherLayer()
     {
         var result = Types.InAssembly(Domain)
             .ShouldNot()
             .HaveDependencyOnAny(ApplicationNamespace, InfrastructureNamespace, ApiNamespace)
             .GetResult();
 
-        AssertSuccess(result, "Domain must not reference Application, Infrastructure or Api.");
+        await AssertSuccess(result, "Domain must not reference Application, Infrastructure or Api.");
     }
 
-    [Fact]
-    public void Application_DoesNotDependOnInfrastructureOrApi()
+    [Test]
+    public async Task Application_DoesNotDependOnInfrastructureOrApi()
     {
         var result = Types.InAssembly(Application)
             .ShouldNot()
             .HaveDependencyOnAny(InfrastructureNamespace, ApiNamespace)
             .GetResult();
 
-        AssertSuccess(result, "Application must talk to Infrastructure through its own Contracts, never directly.");
+        await AssertSuccess(result, "Application must talk to Infrastructure through its own Contracts, never directly.");
     }
 
-    [Fact]
-    public void Infrastructure_DoesNotDependOnApi()
+    [Test]
+    public async Task Infrastructure_DoesNotDependOnApi()
     {
         var result = Types.InAssembly(Infrastructure)
             .ShouldNot()
             .HaveDependencyOn(ApiNamespace)
             .GetResult();
 
-        AssertSuccess(result, "Infrastructure must not reach back into the web layer.");
+        await AssertSuccess(result, "Infrastructure must not reach back into the web layer.");
     }
 
-    [Fact]
-    public void Domain_DoesNotDependOnEntityFrameworkOrAspNetCore()
+    [Test]
+    public async Task Domain_DoesNotDependOnEntityFrameworkOrAspNetCore()
     {
         var result = Types.InAssembly(Domain)
             .ShouldNot()
             .HaveDependencyOnAny("Microsoft.EntityFrameworkCore", "Microsoft.AspNetCore")
             .GetResult();
 
-        AssertSuccess(result, "Domain must stay free of persistence and hosting concerns.");
+        await AssertSuccess(result, "Domain must stay free of persistence and hosting concerns.");
     }
 
-    [Fact]
-    public void Application_DoesNotDependOnAspNetCore()
+    [Test]
+    public async Task Application_DoesNotDependOnAspNetCore()
     {
         var result = Types.InAssembly(Application)
             .ShouldNot()
             .HaveDependencyOn("Microsoft.AspNetCore")
             .GetResult();
 
-        AssertSuccess(result, "Use cases must be callable without a web host — that is what keeps them testable.");
+        await AssertSuccess(result, "Use cases must be callable without a web host — that is what keeps them testable.");
     }
 
-    private static void AssertSuccess(TestResult result, string because)
+    private static async Task AssertSuccess(NetArchTest.Rules.TestResult result, string because)
     {
-        Assert.True(
-            result.IsSuccessful,
-            $"{because}{Environment.NewLine}Offending types:{Environment.NewLine}" +
-            string.Join(Environment.NewLine, result.FailingTypeNames ?? []));
+        await Assert.That(result.IsSuccessful)
+            .IsTrue()
+            .Because($"{because}{Environment.NewLine}Offending types:{Environment.NewLine}" +
+                     string.Join(Environment.NewLine, result.FailingTypeNames ?? []));
     }
 }

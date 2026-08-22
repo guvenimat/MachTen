@@ -4,18 +4,20 @@ using MACHTEN.Api.Features.Ping;
 
 namespace MACHTEN.Api.IntegrationTests.Features;
 
-[Collection(IntegrationTestCollection.Name)]
-public class PingEndpointTests(MachtenApiFactory factory)
+public class PingEndpointTests
 {
-    [Fact]
+    [ClassDataSource<MachtenApiFactory>(Shared = SharedType.PerTestSession)]
+    public required MachtenApiFactory Factory { get; init; }
+
+    [Test]
     public async Task Get_Ping_ReturnsPong()
     {
-        var client = factory.CreateClient();
+        var client = Factory.CreateClient();
 
         var response = await client.GetAsync("/api/v1/ping");
         var body = await response.Content.ReadFromJsonAsync<PingResponse>();
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("pong", body?.Message);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(body?.Message).IsEqualTo("pong");
     }
 }

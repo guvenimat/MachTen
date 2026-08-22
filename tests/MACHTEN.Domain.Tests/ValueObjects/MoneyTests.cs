@@ -4,55 +4,55 @@ namespace MACHTEN.Domain.Tests.ValueObjects;
 
 public class MoneyTests
 {
-    [Fact]
-    public void Constructor_NormalizesCurrencyToUppercase()
+    [Test]
+    public async Task Constructor_NormalizesCurrencyToUppercase()
     {
         var money = new Money(10, "usd");
 
-        Assert.Equal("USD", money.Currency);
+        await Assert.That(money.Currency).IsEqualTo("USD");
     }
 
-    [Theory]
-    [InlineData(-1)]
-    [InlineData(-0.01)]
-    public void Constructor_ThrowsForNegativeAmount(decimal amount)
+    [Test]
+    [Arguments(-1)]
+    [Arguments(-0.01)]
+    public async Task Constructor_ThrowsForNegativeAmount(decimal amount)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new Money(amount, "USD"));
+        await Assert.That(() => new Money(amount, "USD")).Throws<ArgumentOutOfRangeException>();
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("US")]
-    [InlineData("USDD")]
-    public void Constructor_ThrowsForInvalidCurrencyCode(string currency)
+    [Test]
+    [Arguments("")]
+    [Arguments("US")]
+    [Arguments("USDD")]
+    public async Task Constructor_ThrowsForInvalidCurrencyCode(string currency)
     {
-        Assert.Throws<ArgumentException>(() => new Money(10, currency));
+        await Assert.That(() => new Money(10, currency)).Throws<ArgumentException>();
     }
 
-    [Fact]
-    public void Add_SumsAmounts_WhenCurrenciesMatch()
+    [Test]
+    public async Task Add_SumsAmounts_WhenCurrenciesMatch()
     {
         var result = new Money(10, "USD").Add(new Money(5, "USD"));
 
-        Assert.Equal(15, result.Amount);
-        Assert.Equal("USD", result.Currency);
+        await Assert.That(result.Amount).IsEqualTo(15);
+        await Assert.That(result.Currency).IsEqualTo("USD");
     }
 
-    [Fact]
-    public void Add_Throws_WhenCurrenciesDiffer()
+    [Test]
+    public async Task Add_Throws_WhenCurrenciesDiffer()
     {
         var usd = new Money(10, "USD");
         var eur = new Money(5, "EUR");
 
-        Assert.Throws<InvalidOperationException>(() => usd.Add(eur));
+        await Assert.That(() => usd.Add(eur)).Throws<InvalidOperationException>();
     }
 
-    [Fact]
-    public void Zero_CreatesMoneyWithZeroAmount()
+    [Test]
+    public async Task Zero_CreatesMoneyWithZeroAmount()
     {
         var money = Money.Zero("TRY");
 
-        Assert.Equal(0, money.Amount);
-        Assert.Equal("TRY", money.Currency);
+        await Assert.That(money.Amount).IsEqualTo(0);
+        await Assert.That(money.Currency).IsEqualTo("TRY");
     }
 }

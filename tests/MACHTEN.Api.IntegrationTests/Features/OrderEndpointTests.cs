@@ -8,21 +8,23 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MACHTEN.Api.IntegrationTests.Features;
 
-[Collection(IntegrationTestCollection.Name)]
-public class OrderEndpointTests(MachtenApiFactory factory)
+public class OrderEndpointTests
 {
+    [ClassDataSource<MachtenApiFactory>(Shared = SharedType.PerTestSession)]
+    public required MachtenApiFactory Factory { get; init; }
+
     /// <summary>
     /// The "writes" limiter partitions on X-Client-Id, so giving each test its
     /// own id keeps the burst test from spending the budget the others need.
     /// </summary>
     private HttpClient CreateClient(string clientId)
     {
-        var client = factory.CreateClient();
+        var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Client-Id", clientId);
         return client;
     }
 
-    [Fact]
+    [Test]
     public async Task PlaceOrder_ThenFetch_RoundTripsThroughTheDomain()
     {
         var client = CreateClient(nameof(PlaceOrder_ThenFetch_RoundTripsThroughTheDomain));
@@ -31,26 +33,26 @@ public class OrderEndpointTests(MachtenApiFactory factory)
             new PlaceOrderCommand("acme-42", 19.99m, "try"));
         var created = await placed.Content.ReadFromJsonAsync<PlaceOrderResponse>();
 
-        Assert.Equal(HttpStatusCode.Created, placed.StatusCode);
-        Assert.Equal("19.99 TRY", created!.Total);
+        await Assert.That(placed.StatusCode).IsEqualTo(HttpStatusCode.Created);
+        await Assert.That(created!.Total).IsEqualTo("19.99 TRY");
 
         var fetched = await client.GetAsync($"/api/v1/orders/{created.OrderId}");
         var order = await fetched.Content.ReadFromJsonAsync<OrderDto>();
 
-        Assert.Equal(HttpStatusCode.OK, fetched.StatusCode);
-        Assert.Equal("acme-42", order!.CustomerReference);
-        Assert.Equal("TRY", order.Currency);          // domain uppercased it
-        Assert.Equal("Placed", order.Status);
+        await Assert.That(fetched.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That(order!.CustomerReference).IsEqualTo("acme-42");
+        await Assert.That(order.Currency).IsEqualTo("TRY");          // domain uppercased it
+        await Assert.That(order.Status).IsEqualTo("Placed");
     }
 
-    [Fact]
+    [Test]
     public async Task GetOrder_ReturnsNotFound_ForUnknownId()
     {
         var client = CreateClient(nameof(GetOrder_ReturnsNotFound_ForUnknownId));
 
         var response = await client.GetAsync($"/api/v1/orders/{Guid.NewGuid()}");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
     }
 
     /// <summary>
@@ -59,7 +61,7 @@ public class OrderEndpointTests(MachtenApiFactory factory)
     /// keeps returning the cached value. If caching silently stopped working,
     /// the second read would pick up the new amount and this test would fail.
     /// </summary>
-    [Fact]
+    [Test]
     public async Task GetOrder_IsServedFromCache_NotTheDatabase()
     {
         var client = CreateClient(nameof(GetOrder_IsServedFromCache_NotTheDatabase));
@@ -71,10 +73,10 @@ public class OrderEndpointTests(MachtenApiFactory factory)
 
         // Populates the cache.
         var first = await client.GetFromJsonAsync<OrderDto>(url);
-        Assert.Equal(10m, first!.Amount);
+        await Assert.That(first!.Amount).IsEqualTo(10m);
 
         // Mutate the row directly, bypassing the application entirely.
-        using (var scope = factory.Services.CreateScope())
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<MachtenDbContext>();
             await db.Database.ExecuteSqlRawAsync(
@@ -83,14 +85,14 @@ public class OrderEndpointTests(MachtenApiFactory factory)
 
         var second = await client.GetFromJsonAsync<OrderDto>(url);
 
-        Assert.Equal(10m, second!.Amount);
+        await Assert.That(second!.Amount).IsEqualTo(10m);
     }
 
     /// <summary>
     /// The "writes" limiter permits 100 requests per minute with a queue of 10,
     /// so a burst past that must start returning 429.
     /// </summary>
-    [Fact]
+    [Test]
     public async Task PlaceOrder_IsRateLimited_UnderABurst()
     {
         var client = CreateClient(nameof(PlaceOrder_IsRateLimited_UnderABurst));
@@ -103,6 +105,6 @@ public class OrderEndpointTests(MachtenApiFactory factory)
             statuses.Add(response.StatusCode);
         }
 
-        Assert.Contains(HttpStatusCode.TooManyRequests, statuses);
+        await Assert.That(statuses).Contains(HttpStatusCode.TooManyRequests);
     }
 }

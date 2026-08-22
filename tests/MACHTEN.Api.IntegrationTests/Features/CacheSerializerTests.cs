@@ -18,8 +18,8 @@ public class CacheSerializerTests
     private static readonly OrderDto Sample = new(
         Guid.CreateVersion7(), "acme-42", 19.99m, "TRY", "19.99 TRY", "Placed", DateTimeOffset.UtcNow);
 
-    [Fact]
-    public void RoundTrip_PreservesEveryField()
+    [Test]
+    public async Task RoundTrip_PreservesEveryField()
     {
         var serializer = new MemoryPackCacheSerializer<OrderDto>();
 
@@ -27,26 +27,26 @@ public class CacheSerializerTests
         serializer.Serialize(Sample, buffer);
         var restored = serializer.Deserialize(new ReadOnlySequence<byte>(buffer.WrittenMemory));
 
-        Assert.Equal(Sample, restored);
+        await Assert.That(restored).IsEqualTo(Sample);
     }
 
-    [Fact]
-    public void Output_IsBinary_AndSmallerThanJson()
+    [Test]
+    public async Task Output_IsBinary_AndSmallerThanJson()
     {
         var serializer = new MemoryPackCacheSerializer<OrderDto>();
 
         var buffer = new ArrayBufferWriter<byte>();
         serializer.Serialize(Sample, buffer);
-        var bytes = buffer.WrittenSpan;
+        // ToArray, not WrittenSpan: a ref struct cannot survive an await.
+        var bytes = buffer.WrittenMemory.ToArray();
 
         var json = JsonSerializer.SerializeToUtf8Bytes(Sample);
 
         // JSON is entirely printable and opens with '{'. Binary output is
         // neither, which is the cheapest way to prove JSON did not run.
-        Assert.NotEqual((byte)'{', bytes[0]);
-        Assert.True(
-            bytes.Length < json.Length,
-            $"MemoryPack {bytes.Length}B should undercut JSON {json.Length}B ({Encoding.UTF8.GetString(json)})");
+        await Assert.That(bytes[0]).IsNotEqualTo((byte)'{');
+        await Assert.That(bytes.Length).IsLessThan(json.Length)
+            .Because($"MemoryPack should undercut JSON {json.Length}B ({Encoding.UTF8.GetString(json)})");
     }
 }
 
@@ -55,16 +55,18 @@ public class CacheSerializerTests
 /// serializer factory that declined every type, so HybridCache fell back to
 /// JSON while every caching test still passed.
 /// </summary>
-[Collection(IntegrationTestCollection.Name)]
-public class CacheSerializerRegistrationTests(MachtenApiFactory factory)
+public class CacheSerializerRegistrationTests
 {
-    [Fact]
-    public void HybridCache_ResolvesMemoryPackForOrderDto()
+    [ClassDataSource<MachtenApiFactory>(Shared = SharedType.PerTestSession)]
+    public required MachtenApiFactory Factory { get; init; }
+
+    [Test]
+    public async Task HybridCache_ResolvesMemoryPackForOrderDto()
     {
-        using var scope = factory.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
 
         var serializer = scope.ServiceProvider.GetRequiredService<IHybridCacheSerializer<OrderDto>>();
 
-        Assert.IsType<MemoryPackCacheSerializer<OrderDto>>(serializer);
+        await Assert.That(serializer).IsTypeOf<MemoryPackCacheSerializer<OrderDto>>();
     }
 }

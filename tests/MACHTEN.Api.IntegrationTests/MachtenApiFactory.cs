@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Testcontainers.MsSql;
+using TUnit.Core.Interfaces;
 using Testcontainers.Redis;
 
 namespace MACHTEN.Api.IntegrationTests;
 
-public sealed class MachtenApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public sealed class MachtenApiFactory : WebApplicationFactory<Program>, IAsyncInitializer
 {
     private readonly MsSqlContainer _sqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
     private readonly RedisContainer _redisContainer = new RedisBuilder("redis:7").Build();
@@ -28,12 +29,7 @@ public sealed class MachtenApiFactory : WebApplicationFactory<Program>, IAsyncLi
             config.AddInMemoryCollection(
             [
                 new("ConnectionStrings:DefaultConnection", _sqlContainer.GetConnectionString()),
-                new("ConnectionStrings:Cache", _redisContainer.GetConnectionString()),
-
-                // Blank disables the Kafka transport (Program.cs treats an empty
-                // value as "not configured"). Messages still flow through the
-                // durable outbox; OutboxTests spins up a real broker separately.
-                new("ConnectionStrings:Kafka", string.Empty)
+                new("ConnectionStrings:Cache", _redisContainer.GetConnectionString())
             ]);
         });
     }
@@ -54,10 +50,9 @@ public sealed class MachtenApiFactory : WebApplicationFactory<Program>, IAsyncLi
             "ConnectionStrings__DefaultConnection", _sqlContainer.GetConnectionString());
         Environment.SetEnvironmentVariable(
             "ConnectionStrings__Cache", _redisContainer.GetConnectionString());
-        Environment.SetEnvironmentVariable("ConnectionStrings__Kafka", string.Empty);
     }
 
-    async Task IAsyncLifetime.DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         await _sqlContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();

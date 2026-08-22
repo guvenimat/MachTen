@@ -12,25 +12,32 @@ namespace MACHTEN.Api.IntegrationTests.Features;
 /// had never started — so nothing surfaced. Recording an event is not
 /// publishing one, and only a test that waits for delivery can tell them apart.
 /// </summary>
-[Collection(IntegrationTestCollection.Name)]
-public class OutboxTests(MachtenApiFactory factory)
+public class OutboxTests
 {
-    [Fact]
+    [ClassDataSource<MachtenApiFactory>(Shared = SharedType.PerTestSession)]
+    public required MachtenApiFactory Factory { get; init; }
+
+    [Test]
     public async Task PlacingAnOrder_PublishesOrderPlaced()
     {
-        var command = new PlaceOrderCommand("outbox-probe", 42.50m, "try");
+        // Unique per run: tests share one host and run in parallel, so the
+        // tracking session sees every message in flight, not just this one's.
+        var reference = $"outbox-probe-{Guid.CreateVersion7():N}";
+        var command = new PlaceOrderCommand(reference, 42.50m, "try");
 
         // Waits for the whole cascade to settle: the command handled, and every
         // message it produced delivered to its own handler.
-        var session = await factory.Services
+        var session = await Factory.Services
             .TrackActivity()
             .Timeout(TimeSpan.FromSeconds(30))
             .InvokeMessageAndWaitAsync(command);
 
-        var published = session.Executed.SingleMessage<OrderPlaced>();
+        var published = session.Executed
+            .MessagesOf<OrderPlaced>()
+            .Single(m => m.CustomerReference == reference);
 
-        Assert.Equal("outbox-probe", published.CustomerReference);
-        Assert.Equal(42.50m, published.Amount);
-        Assert.Equal("TRY", published.Currency);
+        await Assert.That(published.CustomerReference).IsEqualTo(reference);
+        await Assert.That(published.Amount).IsEqualTo(42.50m);
+        await Assert.That(published.Currency).IsEqualTo("TRY");
     }
 }

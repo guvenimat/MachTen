@@ -28,20 +28,26 @@ jobs:
       - name: Check for vulnerable packages
         run: dotnet list MACHTEN.sln package --vulnerable --include-transitive 2>&1 | tee vuln.log && ! grep -q "has the following vulnerable packages" vuln.log
 
-      - name: Unit tests (Domain + Application)
+      # TUnit builds each test project as its own executable on
+      # Microsoft.Testing.Platform, so they are run rather than handed to a
+      # VSTest host.
+      - name: Unit tests
         run: |
-          dotnet test tests/MACHTEN.Domain.Tests --no-build -c Release --logger "trx;LogFileName=domain.trx"
-          dotnet test tests/MACHTEN.Application.Tests --no-build -c Release --logger "trx;LogFileName=application.trx"
+          dotnet run --project tests/MACHTEN.Domain.Tests --no-build -c Release
+          dotnet run --project tests/MACHTEN.Application.Tests --no-build -c Release
+
+      - name: Architecture tests
+        run: dotnet run --project tests/MACHTEN.ArchitectureTests --no-build -c Release
 
       - name: Integration tests (Testcontainers)
-        run: dotnet test tests/MACHTEN.Api.IntegrationTests --no-build -c Release --logger "trx;LogFileName=integration.trx"
+        run: dotnet run --project tests/MACHTEN.Api.IntegrationTests --no-build -c Release
 
       - name: Publish test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: '**/*.trx'
+          path: '**/TestResults/**'
 
   docker-build:
     runs-on: ubuntu-latest

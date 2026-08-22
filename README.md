@@ -1,7 +1,6 @@
 # MachTen
 
 [![CI](https://github.com/guvenimat/MachTen/actions/workflows/ci.yml/badge.svg)](https://github.com/guvenimat/MachTen/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
 
 .NET 10 üzerinde kurulmuş, performans odaklı bir API template'i ve referans uygulaması.
@@ -166,6 +165,10 @@ Metrikler `/metrics` ucundan Prometheus formatında yayınlanıyor; Prometheus o
 | Mimari | `MACHTEN.ArchitectureTests` | Katman kuralları (5 test) | Hayır |
 | Entegrasyon | `MACHTEN.Api.IntegrationTests` | Uçtan uca, gerçek SQL Server + Redis (9 test) | Evet |
 
+**Test çerçevesi:** [TUnit](https://tunit.dev/) — testleri reflection ile keşfetmek yerine kaynak üretimiyle kaydeder, Microsoft.Testing.Platform üzerinde çalışır ve varsayılan olarak paralel koşar.
+
+> **Tuzak — paralellik test izolasyonunu bozar.** xUnit'te collection fixture testleri sıralıyordu; TUnit paralel koştuğu için outbox testinin izleme oturumu diğer testlerin mesajlarını da gördü ve `SingleMessage` 103 mesaj buldu. Çözüm testi sıralamak değil, her testin kendi verisini benzersiz üretip onu filtrelemesi.
+
 **Mimari testler** (`NetArchTest`) Clean Architecture iddiasını derleme zamanında zorunlu kılar: Domain başka katmana veya EF Core/ASP.NET Core'a bağımlı olamaz.
 
 > **Tuzak — geçen test, ihlali yakalayabildiği anlamına gelmez.** Testleri kasten kırdım (Domain'e EF Core ekleyip `DbContext` kullandım) ve iki şey öğrendim: katmandan katmana kurallar zaten **yapısal olarak ihlal edilemez** (proje grafiği döngüsel olur, build daha erken patlar); asıl ağırlığı taşıyanlar **paket kuralları** — Domain'e EF Core eklemeyi hiçbir şey engellemiyor ve o testler bunu gerçekten yakalıyor.
@@ -256,7 +259,3 @@ Development'ta `AuthSeeder` açılışta migration'ları kendisi uygular.
 ## Katkı
 
 Bkz. [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Lisans
-
-[MIT](LICENSE)
