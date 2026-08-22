@@ -3,259 +3,81 @@
 [![CI](https://github.com/guvenimat/MachTen/actions/workflows/ci.yml/badge.svg)](https://github.com/guvenimat/MachTen/actions/workflows/ci.yml)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
 
-.NET 10 üzerinde kurulmuş, performans odaklı bir API template'i ve referans uygulaması.
+.NET 10 API template'i ve referans uygulaması. Kütüphane seçimlerinde tek ölçüt var: işi **derleme zamanında** yapmak — kaynak üretimi kullanan, açılışta reflection taraması yapmayan araçlar.
 
-## Bu repo iki işe yarar
-
-**1. Yeni bir servise sıfırdan başlamak.** `dotnet new` template'i olarak kurulur, isimleri kendi projene göre yeniden yazar:
-
-```bash
-dotnet new install ./MachTen
-dotnet new machten -n KendiServisim
-```
-
-**2. Tek tek yapıları başka projelere taşımak.** Asıl tasarım hedefi bu. Her altyapı parçası — cache, arka plan işleri, auth, outbox, observability — **kendi başına sökülüp taşınabilecek** şekilde ayrılmış ve aşağıdaki [Yapı kataloğu](#yapı-kataloğu)'nda dosya yollarıyla, tercih gerekçesiyle ve karşılaştığım tuzaklarla belgelenmiş.
-
-> Mevcut bir projene bir yapı eklemek istiyorsan doğrudan kataloğa git, ilgili bloğun dosyalarını kopyala. Bloklar birbirine bağımlı değildir.
-
-Kütüphane seçimlerinde ortak ölçüt, işi **derleme zamanında** yapabilmek: kaynak üretimi kullanan, açılışta reflection taraması yapmayan ve çalışma zamanında kod üretmeyen araçlar tercih edildi.
-
----
-
-## Hızlı başlangıç
+İki şekilde kullanılır: yeni bir servise sıfırdan başlamak, ya da tek tek yapıları söküp mevcut projelere taşımak.
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-Ayağa kalkınca: **http://localhost:5000/scalar**
+→ **http://localhost:5000/scalar**
 
 ```bash
-# Token al, korumalı endpoint'i çağır
-curl -X POST http://localhost:5000/connect/token \
-  -d "grant_type=client_credentials&client_id=machten-sample-client&client_secret=machten-sample-secret&scope=api"
-
-curl http://localhost:5000/api/v1/me -H "Authorization: Bearer <access_token>"
-
-# Sipariş oluştur ve oku (ikinci okuma cache'ten gelir)
-curl -X POST http://localhost:5000/api/v1/orders \
-  -H "Content-Type: application/json" \
-  -d '{"customerReference":"acme-42","amount":19.99,"currency":"try"}'
+dotnet new install ./MachTen
+dotnet new machten -n KendiServisim
 ```
 
----
-
-## Yapı kataloğu
-
-Her blok bağımsızdır. "Şu yapıyı şu projeme uygula" demek için ihtiyacın olan her şey burada.
-
-### 🗄️ İki katmanlı cache (L1 + L2)
-
-Süreç içi bellek + dağıtık cache'i tek arayüzün arkasında birleştirir. Okuma önce RAM'e, sonra Garnet'e, en son veritabanına gider.
+## Ne var
 
 | | |
 |---|---|
-| **Dosyalar** | `Application/Contracts/ICacheStore.cs`, `Application/Contracts/CacheKeys.cs`, `Infrastructure/Caching/CacheStore.cs` |
-| **Kullanım örneği** | `Application/Features/Orders/GetOrder/GetOrderHandler.cs` |
-| **Paketler** | `Microsoft.Extensions.Caching.Hybrid`, `Microsoft.Extensions.Caching.StackExchangeRedis`, `MemoryPack` |
-| **Altyapı** | Garnet (Redis protokolü uyumlu) — `docker-compose.yml` |
-
-**Neden Garnet:** Microsoft'un Redis protokolüyle uyumlu sunucusu; istemci kütüphaneleri aynen çalışır, tek satır kod değişmeden Redis'le yer değiştirebilir.
-
-**Neden `ICacheStore` soyutlaması:** `HybridCache` doğrudan Application katmanında kullanılsaydı, use case'ler bir altyapı tipine bağlanırdı. Arayüz sayesinde Application katmanı cache'in nerede olduğunu bilmez.
-
-**Serileştirme:** Cache girdileri JSON yerine [MemoryPack](https://github.com/Cysharp/MemoryPack) ile ikili olarak yazılıyor — formatter'lar derleme zamanında üretiliyor, reflection yok.
-
-> **Tuzak — serializer sessizce JSON'a düşer.** Bir tipi sahiplenen serializer yoksa HybridCache kendi reflection tabanlı JSON'ına geri döner ve **hiçbir şey hata vermez**; "cache çalışıyor" testleri iki durumda da geçer. İlk denemede `IHybridCacheSerializerFactory` yazdım, `MemoryPackFormatterProvider.IsRegistered<T>()` tip ilk kez serileştirilene kadar `false` döndüğü için factory her tipi reddetti ve her yazma JSON'a düştü. Bu yüzden serializer'lar artık `Program.cs`'de **tip tip açıkça** kaydediliyor ve `CacheSerializerRegistrationTests` DI'dan gerçekten MemoryPack çıktığını doğruluyor.
-
-> **Tuzak — cache anahtarları tek yerde.** `CacheKeys.cs` var çünkü yazma yolunun invalidate ettiği anahtarla okuma yolunun ürettiği anahtar farklı yazılırsa, hata sessizdir: cache asla temizlenmez, veri bayat kalır ve hiçbir test patlamaz.
-
-> **Tuzak — `GetOrCreateAsync`'e state'i açıkça geçir.** Handler'daki factory `static` lambda; closure yakalamadığı için çağrı başına allocation yapmaz. Closure kullanırsan her istekte bir nesne ayrılır.
-
----
-
-### 🔐 Auth: OpenIddict + Identity + JWT Bearer
-
-Token üreten yetkilendirme sunucusu (`client_credentials`, `password`, `refresh_token`) ve token doğrulayan resource server, tek uygulamada.
-
-| | |
-|---|---|
-| **Dosyalar** | `Api/Features/Auth/TokenEndpoint.cs`, `Api/Features/Auth/MeEndpoint.cs`, `Api/Infrastructure/Auth/AuthSeeder.cs`, `Infrastructure/Identity/ApplicationUser.cs` |
-| **Yapılandırma** | `Api/Program.cs` → Identity / OpenIddict / JWT Bearer blokları |
-| **Paketler** | `OpenIddict.AspNetCore`, `OpenIddict.EntityFrameworkCore`, `Microsoft.AspNetCore.Identity.EntityFrameworkCore`, `Microsoft.AspNetCore.Authentication.JwtBearer` |
-
-**Neden OpenIddict:** Standartlara uygun tam bir OAuth2/OIDC sunucusu; kendi kullanıcı deponla ve ASP.NET Core Identity ile birlikte çalışıyor.
-
-Bu blok en çok tuzak barındıran yer — dördü de gerçekten başıma geldi ve testler yakaladı:
-
-> **Tuzak 1 — OpenIddict simetrik imzalama anahtarını reddeder.** JWT üretmek için **asimetrik** anahtar şart. `SymmetricSecurityKey` ile açılışta `InvalidOperationException: At least one asymmetric signing key must be registered` alırsın. Çözüm: RSA anahtarı (`Program.cs` içinde config'ten okunuyor).
-
-> **Tuzak 2 — `AddIdentity` challenge şemasını cookie'ye çevirir.** Sonuç: token'sız istek 401 yerine, olmayan bir login sayfasına yönlenip **404** döner. Sessiz ve kafa karıştırıcı. Çözüm: `AddAuthentication` içinde `DefaultScheme`, `DefaultAuthenticateScheme` ve `DefaultChallengeScheme`'in üçünü birden JWT Bearer'a sabitle.
-
-> **Tuzak 3 — JWT Bearer claim adlarını yeniden yazar.** `sub` ve `name`, eski WS-Federation URI'lerine map'lenir; `User.FindFirst("sub")` boş döner. Çözüm: `opts.MapInboundClaims = false`.
-
-> **Tuzak 4 — access token şifreliyse JWT Bearer okuyamaz.** `DisableAccessTokenEncryption()` gerekir; refresh token'lar şifreli kalır.
-
-**Anahtar yönetimi:** İmzalama anahtarı config'ten geliyor, development sertifikasından değil. Böylece her instance aynı materyalle imzalar ve doğrulama metadata discovery turu gerektirmez — bu aynı zamanda `WebApplicationFactory` altındaki testleri çalışır kılan şey.
-
-⚠️ `appsettings.json`'daki anahtarlar ve demo şifreler **yalnızca geliştirme içindir.** Üretimde `Auth__SigningKey` / `Auth__EncryptionKey` ortam değişkeniyle ezilmeli ve `AuthSeeder` devre dışı bırakılmalı.
-
----
-
-### 📤 Transactional outbox
-
-Domain event'i, onu doğuran veritabanı işlemiyle **aynı transaction içinde** yazar. Sipariş geri alınırsa mesaj asla çıkmaz; commit olduysa mesaj kaybolmaz.
-
-| | |
-|---|---|
-| **Dosyalar** | `Domain/Events/IDomainEvent.cs`, `Domain/Events/OrderPlaced.cs`, `Domain/Entities/Order.cs` (event kaydı), `Application/Features/Orders/PlaceOrder/PlaceOrderHandler.cs` (yayınlama), `Application/Features/Orders/OrderPlacedHandler.cs` (tüketici) |
-| **Paketler** | `WolverineFx`, `WolverineFx.SqlServer`, `WolverineFx.EntityFrameworkCore` |
-
-**Neden Wolverine:** Handler'ları derleme zamanında bağlıyor ve dayanıklı outbox'ı kutudan çıkıyor — ayrı bir mesajlaşma altyapısı kurmaya gerek kalmıyor.
-
-**Neden outbox:** "Kaydet, sonra mesaj yayınla" yaklaşımında iki adım arasında süreç ölürse mesaj kaybolur; sıra ters çevrilirse geri alınan bir işlem için mesaj yayınlanır. Outbox ikisini tek transaction'a alır.
-
-> **Tuzak — event'i kaydetmek yayınlamak değildir.** `Order.Place()` `OrderPlaced`'ı aggregate'e kaydediyordu ama hiçbir yer onu yayınlamıyordu; outbox yapılandırması aylarca dekoratif durdu ve fark edilmedi. Handler artık event'i tuple olarak döndürüyor, Wolverine de onu cascading message olarak outbox'tan geçiriyor. `OutboxTests` bunu doğruluyor — yayınlamayı geri çekince test kırmızıya dönüyor.
-
-> **Tuzak — Wolverine 6 çekirdeği Roslyn'siz geliyor.** `TypeLoadMode.Dynamic` varsayılan ama derleyici yok, uygulama açılışta çöküyor. Ya `WolverineFx.RuntimeCompilation` eklenecek (şu an öyle) ya da `codegen write` + `TypeLoadMode.Static` — ikincisi AOT için şart.
-
----
-
-### 🧭 Observability: OpenTelemetry → Prometheus
-
-| | |
-|---|---|
-| **Dosyalar** | `Api/Program.cs` → OpenTelemetry bloğu, `Api/Infrastructure/Observability/CorrelationIdMiddleware.cs`, `Api/Infrastructure/Logging/LoggerMessageDefinitions.cs` |
-| **Altyapı** | `infra/prometheus/prometheus.yml` |
-
-Metrikler `/metrics` ucundan Prometheus formatında yayınlanıyor; Prometheus onları topluyor. Görselleştirme katmanı bilinçli olarak yok — Grafana, Datadog veya başka bir şey takılabilir.
-
-**Correlation ID:** Pipeline'ın en başında çalışır, gelen `X-Correlation-ID` başlığını korur, yoksa trace id'den üretir ve logging scope'una koyar — böylece bir isteğin tüm log satırları birbirine bağlanır.
-
-**Logging:** [ZLogger](https://github.com/Cysharp/ZLogger) — `LoggerMessageDefinitions.cs` içindeki `[ZLoggerMessage]` tanımları derleme zamanında üretilir; UTF8'e doğrudan yazar, ara string kurmaz. Çıktı her ortamda JSON (`docker compose logs | jq` ile okunur).
-
-> **Tuzak — `IncludeScopes` tek başına yetmiyor.** ZLogger'ın düz metin formatlayıcısı scope değerlerini basmıyor. Correlation id yanıt başlığında görünüp loglarda hiç çıkmıyordu; JSON formatlayıcıya geçilince düzeldi. Ölçmeden fark edilmezdi.
-
-> **Tuzak — panel eklemek metrik toplamak demek değil.** Bir dashboard'a bellek paneli koymak yetmez; runtime metriklerini toplayan bir şey yoksa panel sonsuza kadar boş kalır (`OpenTelemetry.Instrumentation.Runtime` gerekiyor).
-
----
-
-### 🧱 Domain modelleme: value object + domain event
-
-| | |
-|---|---|
-| **Dosyalar** | `Domain/ValueObjects/Money.cs`, `Domain/Entities/Order.cs`, `Domain/Exceptions/` |
-| **Kalıcılık eşlemesi** | `Infrastructure/Persistence/Configurations/OrderConfiguration.cs` |
-
-`Money` kendi kurallarını kendi korur (negatif olamaz, 3 harfli ISO para birimi, otomatik büyük harfe çevirir). `ComplexProperty` ile `Order` satırına düzleşir — ayrı tablo yok, türetilmiş `Formatted` alanı yazılmaz.
-
-> **Tuzak — kullanıcıya/tele giden formatlama `InvariantCulture` olmalı.** `Money.Formatted` başta makinenin culture'ını kullanıyordu; Türkçe locale'de API `19,99 TRY` döndürüyordu. Yani yanıt sunucunun bulunduğu makineye göre değişiyordu. Testin yakaladığı gerçek bir hataydı.
-
-> **Tuzak — UUIDv7 sıralaması yalnızca milisaniyeler arasında garanti.** `Guid.CreateVersion7()` clustered index'e sıralı yazım için kullanılıyor, ama aynı milisaniyede üretilen iki id'nin sırası garanti değil. Ayrıca sıralama **byte düzeyinde**; `Guid.CompareTo` .NET'in kendi alan sırasını kullandığı için bunu göstermez.
-
----
-
-### ✅ Test stratejisi
-
-| Katman | Proje | Kapsam | Docker |
-|---|---|---|---|
-| Domain | `MACHTEN.Domain.Tests` | Value object ve entity kuralları (16 test) | Hayır |
-| Application | `MACHTEN.Application.Tests` | Mapping (1 test) | Hayır |
-| Mimari | `MACHTEN.ArchitectureTests` | Katman kuralları (5 test) | Hayır |
-| Entegrasyon | `MACHTEN.Api.IntegrationTests` | Uçtan uca, gerçek SQL Server + Redis (9 test) | Evet |
-
-**Test çerçevesi:** [TUnit](https://tunit.dev/) — testleri reflection ile keşfetmek yerine kaynak üretimiyle kaydeder, Microsoft.Testing.Platform üzerinde çalışır ve varsayılan olarak paralel koşar.
-
-> **Tuzak — paralellik test izolasyonunu bozar.** xUnit'te collection fixture testleri sıralıyordu; TUnit paralel koştuğu için outbox testinin izleme oturumu diğer testlerin mesajlarını da gördü ve `SingleMessage` 103 mesaj buldu. Çözüm testi sıralamak değil, her testin kendi verisini benzersiz üretip onu filtrelemesi.
-
-**Mimari testler** (`NetArchTest`) Clean Architecture iddiasını derleme zamanında zorunlu kılar: Domain başka katmana veya EF Core/ASP.NET Core'a bağımlı olamaz.
-
-> **Tuzak — geçen test, ihlali yakalayabildiği anlamına gelmez.** Testleri kasten kırdım (Domain'e EF Core ekleyip `DbContext` kullandım) ve iki şey öğrendim: katmandan katmana kurallar zaten **yapısal olarak ihlal edilemez** (proje grafiği döngüsel olur, build daha erken patlar); asıl ağırlığı taşıyanlar **paket kuralları** — Domain'e EF Core eklemeyi hiçbir şey engellemiyor ve o testler bunu gerçekten yakalıyor.
-
-**Cache testi**, satırı uygulamanın arkasından `UPDATE` edip endpoint'in hâlâ eski değeri döndürdüğünü doğrular. Yalnızca 200 kontrol eden bir test, cache tamamen kapalıyken de geçerdi.
-
----
+| **HTTP** | FastEndpoints + FluentValidation, `api/v1/...` versiyonlama, Scalar |
+| **Veri** | EF Core + SQL Server, Mapperly ile eşleme |
+| **Cache** | HybridCache (L1 bellek + L2 Garnet), MemoryPack ile ikili serileştirme |
+| **Auth** | OpenIddict + ASP.NET Core Identity, JWT Bearer doğrulama |
+| **Mesajlaşma** | Wolverine, SQL Server üzerinde transactional outbox |
+| **Observability** | OpenTelemetry → Prometheus, ZLogger (JSON), correlation ID |
+| **Test** | TUnit, Testcontainers, NetArchTest — 35 test |
 
 ## Mimari
 
-Katmanlı (Clean Architecture) + özellik bazlı (vertical slice) hibrit. Bağımlılıklar içe doğru akar: `Domain` hiçbir şeye bağımlı değil, `Application` yalnızca `Domain`'i tanır. `Infrastructure`, `Application`'daki arayüzleri implemente eder — bağımlılık oku dışarıdan içeri döner. `Api` iş mantığı barındırmaz; katmanları bağlar ve HTTP yüzeyini açar.
+Clean Architecture + vertical slice. Bağımlılıklar içe akar: `Domain` hiçbir şeye bağımlı değil, `Infrastructure` `Application`'ın arayüzlerini implemente eder, `Api` yalnızca bağlar.
 
 ```
-src/
-  MACHTEN.Domain          → Entity, value object, domain event (framework'süz)
-  MACHTEN.Application     → Command/Query + Handler, mapping, arayüzler
-  MACHTEN.Infrastructure  → EF Core, cache, Identity
-  MACHTEN.Api             → Endpoint'ler, arka plan işleri, Program.cs
-tests/                    → Domain / Application / Mimari / Entegrasyon
-benchmarks/               → BenchmarkDotNet
+src/Domain          → Entity, value object, domain event (framework'süz)
+src/Application     → Command/Query + Handler, mapping, arayüzler
+src/Infrastructure  → EF Core, cache, Identity
+src/Api             → Endpoint'ler, Program.cs
 ```
 
-Yeni özellik eklerken `Features/<Ad>/` desenini koru. Referans: `Features/Orders` (validasyon + domain + cache + outbox bir arada).
+Yeni özellik eklerken `Features/<Ad>/` desenini koru. Referans dilim `Features/Orders` — validasyon, domain kuralı, cache ve outbox bir arada.
 
----
+**Yapı taşımak için** ilgili klasörü kopyala; bloklar birbirine bağımlı değil. Cache için örnek: `Application/Contracts/ICacheStore.cs` + `Contracts/CacheKeys.cs` + `Infrastructure/Caching/`.
+
+## Test
+
+```bash
+dotnet run --project tests/MACHTEN.Domain.Tests          # hızlı
+dotnet run --project tests/MACHTEN.ArchitectureTests     # katman kuralları
+dotnet run --project tests/MACHTEN.Api.IntegrationTests  # Docker gerekir
+```
+
+TUnit her projeyi kendi çalıştırılabiliri olarak derler, o yüzden `dotnet test` değil `dotnet run`.
+
+Testler davranışı doğrular, varlığı değil: cache testi satırı uygulamanın arkasından değiştirip bayat değerin döndüğünü kontrol eder, outbox testi mesajın gerçekten teslim edilmesini bekler, mimari testler Domain'e EF Core eklenirse kırılır.
 
 ## Ölçümler
 
 `dotnet run -c Release --project benchmarks/MACHTEN.Benchmarks -- --filter *`
 
-Ryzen 7 7800X3D, .NET 10, ShortRun:
+| | Kaynak-üretimli | Reflection |
+|---|---|---|
+| Eşleme (Mapperly) | **66 ns / 160 B** | 410 ns / 800 B |
+| JSON (System.Text.Json) | **185 ns / 424 B** | 234 ns / 424 B |
 
-| | Kaynak-üretimli | Reflection | Fark |
-|---|---|---|---|
-| Nesne eşleme (Mapperly) | **66 ns / 160 B** | 410 ns / 800 B | 6.18× hızlı, 5× az allocation |
-| JSON serileştirme (STJ) | **185 ns / 424 B** | 234 ns / 424 B | 1.26× hızlı, allocation aynı |
-
-JSON sonucunu abartmıyorum: fark mütevazı ve allocation eşit. Source generation'ın asıl gerekçesi trimming ve AOT'u mümkün kılması, throughput zaferi değil.
-
-> ShortRun (3 iterasyon) ile ölçüldü, hata payları geniş. Kesin sayı için `--job default` ile çalıştır.
-
----
-
-## 🔬 Native AOT — araştırma sonuçları
-
-**Henüz uygulanmadı.** Aşağıdakiler gerçek AOT binary'si üretilerek ölçüldü; göç planlanıyor.
-
-Boş bir API 15 MB, tüm yığın eklenince 29 MB native binary olarak derlendi ve çalıştı.
-
-| Bileşen | Durum |
-|---|---|
-| Dapper.AOT | ✅ 0 uyarı — interception reflection yolunu tamamen siliyor |
-| JWT Bearer, OpenTelemetry, Mapperly, StackExchange.Redis | ✅ Temiz |
-| HybridCache | ✅ Çalışıyor (kaynak-üretimli serializer ile) |
-| Microsoft.Data.SqlClient | ✅ Çalışıyor — uyarılar kullanmadığımız opsiyonel yollarda |
-| **EF Core** | ❌ **Tek sert engel** — resmî olarak "highly experimental, not suited for production" |
-
-Çalışan AOT binary'de **hiç** `MissingMetadata` / `TypeLoad` / `PlatformNotSupported` hatası görülmedi. SqlClient normal bir `SqlException` üretti (sunucu yoktu), yani sürücü AOT altında sağlam.
-
-> **Tuzak — Dapper.AOT üç şey olmadan sessizce devre dışı kalır:** `Dapper` + `Dapper.AOT` paketleri birlikte, using'lerden *sonra* `[module: DapperAot]`, ve `<InterceptorsNamespaces>$(InterceptorsNamespaces);Dapper.AOT</InterceptorsNamespaces>`. Eksikse `DAP005` uyarısı verir ve reflection yolu sessizce çalışmaya devam eder.
-
-> **Tuzak — AOT altında anonim tipler serialize edilemez.** `new { ok = true }` döndüren endpoint 500 verir. Her yanıt tipi `JsonSerializerContext`'e kayıtlı somut bir tip olmalı.
-
-> **Düzeltme:** Bu README daha önce "FastEndpoints reflection yüzünden AOT'ta çalışmıyor" diyordu. Çökme gerçekti ama teşhis eksikti — sebep `FastEndpoints.Generator` paketinin kurulu olmamasıydı, kütüphanenin doğasında bir kısıt değil.
-
----
-
-## Veritabanı
-
-```bash
-dotnet tool install --global dotnet-ef
-dotnet ef migrations add <Ad> --project src/MACHTEN.Infrastructure --startup-project src/MACHTEN.Api --context MachtenDbContext -o Persistence/Migrations
-```
-
-Development'ta `AuthSeeder` açılışta migration'ları kendisi uygular.
-
-> **Tuzak — iki kütüphane aynı anda `IModelCustomizer` kurarsa biri diğerini ezer.** Bu projede gerçekten yaşandı: kendi customizer'ını kuran bir kütüphane OpenIddict'inkini devre dışı bıraktı ve OpenIddict'in **dört tablosu migration'dan sessizce düştü** — hata yok, sadece eksik tablo. Bu yüzden OpenIddict entity'leri `DbContextOptions.UseOpenIddict()` yerine `OnModelCreating` içinde açıkça kaydediliyor (`MachtenDbContext.cs`).
-
----
+JSON farkı mütevazı ve allocation eşit — source generation'ın asıl gerekçesi throughput değil, trimming ve AOT'u mümkün kılması.
 
 ## Bilinen sınırlar
 
-- **Native AOT kapalı** — EF Core engeli yüzünden; yukarıdaki araştırma bölümüne bak.
-- **Harici broker yok.** Outbox mesajı dayanıklı yerel kuyruğa teslim ediyor; Kafka/RabbitMQ/NATS eklemek `Program.cs`'deki tek bir transport satırı, yayınlama kodu değişmez.
-- **FastEndpoints** 2026'da "yalnızca hata düzeltme" moduna geçebileceğini duyurdu. Uzun ömür kritikse Minimal API + RDG'ye geçiş düşünülmeli.
-- `/health` SQL Server'ı `master` üzerinden kontrol eder; uygulama veritabanı henüz oluşmamışsa bu kontrolü etkilemez.
+- **Native AOT kapalı** — tek engel EF Core; ölçüm sonuçları [NOTES.md](NOTES.md)'de.
+- **Harici broker yok** — outbox dayanıklı yerel kuyruğa teslim ediyor; Kafka/RabbitMQ/NATS eklemek tek satırlık transport değişikliği.
+- **FastEndpoints** 2026'da bakım moduna geçebileceğini duyurdu; uzun ömür kritikse Minimal API + RDG.
+- `appsettings.json`'daki anahtarlar ve demo şifreler yalnızca geliştirme içindir.
 
-## Katkı
+---
 
-Bkz. [CONTRIBUTING.md](CONTRIBUTING.md).
+📓 **[NOTES.md](NOTES.md)** — kurarken çarptığım tuzaklar. Neredeyse hepsi hata vermeden yanlış çalışan şeyler.
+
+🤝 **[CONTRIBUTING.md](CONTRIBUTING.md)**
