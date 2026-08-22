@@ -28,7 +28,6 @@ using MACHTEN.Application.Features.Orders.PlaceOrder;
 using MACHTEN.Domain.Events;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
-using Wolverine.Kafka;
 using Wolverine.SqlServer;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -284,7 +283,7 @@ builder.Services.SwaggerDocument(o =>
     };
 });
 
-// ── Wolverine: handlers, transactional outbox, Kafka ──
+// ── Wolverine: handlers and transactional outbox ──
 builder.Host.UseWolverine(opts =>
 {
     // Handlers live in the Application layer; Wolverine only scans the entry
@@ -308,15 +307,14 @@ builder.Host.UseWolverine(opts =>
     opts.UseEntityFrameworkCoreTransactions();
     opts.Policies.UseDurableLocalQueues();
 
-    var kafka = builder.Configuration.GetConnectionString("Kafka");
-    if (!string.IsNullOrWhiteSpace(kafka))
-    {
-        opts.UseKafka(kafka).AutoProvision();
-
-        opts.PublishMessage<OrderPlaced>()
-            .ToKafkaTopic("machten.orders.placed")
-            .UseDurableOutbox();
-    }
+    // OrderPlaced goes to a durable local queue. The outbox guarantee is the
+    // same as with an external broker - the message is written in the order's
+    // transaction and delivered after commit - but it needs no extra
+    // infrastructure, so it can actually be tested. Swapping in a real broker
+    // is a transport line here, not a change to the publishing code.
+    opts.PublishMessage<OrderPlaced>()
+        .ToLocalQueue("orders-placed")
+        .UseDurableInbox();
 });
 
 var app = builder.Build();

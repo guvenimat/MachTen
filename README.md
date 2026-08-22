@@ -100,31 +100,33 @@ Bu blok en çok tuzak barındıran yer — dördü de gerçekten başıma geldi 
 
 ---
 
-### 📤 Transactional outbox → Kafka
+### 📤 Transactional outbox
 
 Domain event'i, onu doğuran veritabanı işlemiyle **aynı transaction içinde** yazar. Sipariş geri alınırsa mesaj asla çıkmaz; commit olduysa mesaj kaybolmaz.
 
 | | |
 |---|---|
-| **Dosyalar** | `Domain/Events/IDomainEvent.cs`, `Domain/Events/OrderPlaced.cs`, `Domain/Entities/Order.cs` (event kaydı), `Api/Program.cs` → Wolverine bloğu |
-| **Paketler** | `WolverineFx`, `WolverineFx.SqlServer`, `WolverineFx.EntityFrameworkCore`, `WolverineFx.Kafka` |
+| **Dosyalar** | `Domain/Events/IDomainEvent.cs`, `Domain/Events/OrderPlaced.cs`, `Domain/Entities/Order.cs` (event kaydı), `Application/Features/Orders/PlaceOrder/PlaceOrderHandler.cs` (yayınlama), `Application/Features/Orders/OrderPlacedHandler.cs` (tüketici) |
+| **Paketler** | `WolverineFx`, `WolverineFx.SqlServer`, `WolverineFx.EntityFrameworkCore` |
 
 **Neden Wolverine:** Handler'ları derleme zamanında bağlıyor ve dayanıklı outbox'ı kutudan çıkıyor — ayrı bir mesajlaşma altyapısı kurmaya gerek kalmıyor.
 
 **Neden outbox:** "Kaydet, sonra mesaj yayınla" yaklaşımında iki adım arasında süreç ölürse mesaj kaybolur; sıra ters çevrilirse geri alınan bir işlem için mesaj yayınlanır. Outbox ikisini tek transaction'a alır.
 
-> **Tuzak — Wolverine 6 gerekiyor.** Kafka ve EF Core outbox paketleri yalnızca 6.x'te var. Ayrıca 6.0'da Roslyn bağımlılığı çekirdekten çıkarıldı, bu da AOT yolunu açıyor (`codegen write` + `TypeLoadMode.Static`).
+> **Tuzak — event'i kaydetmek yayınlamak değildir.** `Order.Place()` `OrderPlaced`'ı aggregate'e kaydediyordu ama hiçbir yer onu yayınlamıyordu; outbox yapılandırması aylarca dekoratif durdu ve fark edilmedi. Handler artık event'i tuple olarak döndürüyor, Wolverine de onu cascading message olarak outbox'tan geçiriyor. `OutboxTests` bunu doğruluyor — yayınlamayı geri çekince test kırmızıya dönüyor.
+
+> **Tuzak — Wolverine 6 çekirdeği Roslyn'siz geliyor.** `TypeLoadMode.Dynamic` varsayılan ama derleyici yok, uygulama açılışta çöküyor. Ya `WolverineFx.RuntimeCompilation` eklenecek (şu an öyle) ya da `codegen write` + `TypeLoadMode.Static` — ikincisi AOT için şart.
 
 ---
 
-### 🧭 Observability: OpenTelemetry → Prometheus → Grafana
+### 🧭 Observability: OpenTelemetry → Prometheus
 
 | | |
 |---|---|
 | **Dosyalar** | `Api/Program.cs` → OpenTelemetry bloğu, `Api/Infrastructure/Observability/CorrelationIdMiddleware.cs`, `Api/Infrastructure/Logging/LoggerMessageDefinitions.cs` |
-| **Altyapı** | `infra/prometheus/prometheus.yml`, `infra/grafana/provisioning/` (datasource + hazır dashboard) |
+| **Altyapı** | `infra/prometheus/prometheus.yml` |
 
-Dashboard hazır geliyor: throughput, p50/p95/p99 gecikme, hata oranı, status kodu dağılımı, runtime bellek.
+Metrikler `/metrics` ucundan Prometheus formatında yayınlanıyor; Prometheus onları topluyor. Görselleştirme katmanı bilinçli olarak yok — Grafana, Datadog veya başka bir şey takılabilir.
 
 **Correlation ID:** Pipeline'ın en başında çalışır, gelen `X-Correlation-ID` başlığını korur, yoksa trace id'den üretir ve logging scope'una koyar — böylece bir isteğin tüm log satırları birbirine bağlanır.
 
@@ -132,9 +134,7 @@ Dashboard hazır geliyor: throughput, p50/p95/p99 gecikme, hata oranı, status k
 
 > **Tuzak — `IncludeScopes` tek başına yetmiyor.** ZLogger'ın düz metin formatlayıcısı scope değerlerini basmıyor. Correlation id yanıt başlığında görünüp loglarda hiç çıkmıyordu; JSON formatlayıcıya geçilince düzeldi. Ölçmeden fark edilmezdi.
 
-> **Tuzak — panel eklemek metrik toplamak demek değil.** Grafana'ya bellek paneli koydum ama runtime metriklerini toplayan bir şey yoktu; panel sonsuza kadar boş kalacaktı. `OpenTelemetry.Instrumentation.Runtime` eklenmesi gerekti.
-
-> **Tuzak — provisioned dashboard datasource'a uid ile bağlanır.** `datasource.yml`'de sabit `uid: prometheus` yoksa dashboard'lar bağlanacak bir şey bulamaz ve paneller "datasource not found" der.
+> **Tuzak — panel eklemek metrik toplamak demek değil.** Bir dashboard'a bellek paneli koymak yetmez; runtime metriklerini toplayan bir şey yoksa panel sonsuza kadar boş kalır (`OpenTelemetry.Instrumentation.Runtime` gerekiyor).
 
 ---
 
@@ -245,7 +245,7 @@ Development'ta `AuthSeeder` açılışta migration'ları kendisi uygular.
 ## Bilinen sınırlar
 
 - **Native AOT kapalı** — EF Core engeli yüzünden; yukarıdaki araştırma bölümüne bak.
-- **Kafka broker'ı compose'da tanımlı** ve outbox ona yayın yapıyor; tüketici tarafı yazılmadı.
+- **Harici broker yok.** Outbox mesajı dayanıklı yerel kuyruğa teslim ediyor; Kafka/RabbitMQ/NATS eklemek `Program.cs`'deki tek bir transport satırı, yayınlama kodu değişmez.
 - **FastEndpoints** 2026'da "yalnızca hata düzeltme" moduna geçebileceğini duyurdu. Uzun ömür kritikse Minimal API + RDG'ye geçiş düşünülmeli.
 - `/health` SQL Server'ı `master` üzerinden kontrol eder; uygulama veritabanı henüz oluşmamışsa bu kontrolü etkilemez.
 

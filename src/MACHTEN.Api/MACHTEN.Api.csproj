@@ -27,7 +27,6 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.1" />
     <PackageReference Include="WolverineFx" Version="6.29.1" />
     <PackageReference Include="WolverineFx.EntityFrameworkCore" Version="6.29.1" />
-    <PackageReference Include="WolverineFx.Kafka" Version="6.29.1" />
     <PackageReference Include="WolverineFx.RuntimeCompilation" Version="6.29.1" />
     <PackageReference Include="WolverineFx.SqlServer" Version="6.29.1" />
     <PackageReference Include="ZLogger" Version="2.5.10" />
@@ -44,6 +43,10 @@
     <PublishReadyToRun>true</PublishReadyToRun>
     <TieredPGO>true</TieredPGO>
     <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- CS1522: ZLogger's generator emits an empty switch for parameterless
+         messages. The file lives in obj/, where .editorconfig severity rules do
+         not reach, so it has to be suppressed here. -->
+    <NoWarn>$(NoWarn);CS1522</NoWarn>
   </PropertyGroup>
 
 </Project>
