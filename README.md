@@ -72,23 +72,6 @@ Süreç içi bellek + dağıtık cache'i tek arayüzün arkasında birleştirir.
 
 ---
 
-### ⏱️ Arka plan işleri (TickerQ)
-
-Cron ve zaman tabanlı işler; zamanlama ve çalışma geçmişi veritabanında.
-
-| | |
-|---|---|
-| **Dosyalar** | `Api/Jobs/HeartbeatJob.cs`, `Api/Program.cs` içindeki `AddTickerQ` bloğu |
-| **Paketler** | `TickerQ`, `TickerQ.EntityFrameworkCore` |
-
-**Neden TickerQ:** İşleri **source generator** ile kaydeder — açılışta reflection taraması yok, kayıt derleme zamanında doğrulanır. Quartz bu ölçek için ağır kalıyor.
-
-> **Tuzak — iş metodu `Task` döndürmeli.** `void` dönen bir `[TickerFunction]` metodu, source generator'ın ürettiği kodda derleme hatası verir (`CS1643`) ve hata mesajı üretilen dosyayı işaret ettiği için nedeni anlaşılmaz.
-
-> **Tuzak — `UseModelCustomizer` başka kütüphaneleri ezebilir.** Bkz. aşağıdaki OpenIddict tuzağı; ikisi aynı anda kullanılıyorsa sıralama önemli.
-
----
-
 ### 🔐 Auth: OpenIddict + Identity + JWT Bearer
 
 Token üreten yetkilendirme sunucusu (`client_credentials`, `password`, `refresh_token`) ve token doğrulayan resource server, tek uygulamada.
@@ -253,7 +236,7 @@ dotnet ef migrations add <Ad> --project src/MACHTEN.Infrastructure --startup-pro
 
 Development'ta `AuthSeeder` açılışta migration'ları kendisi uygular.
 
-> **Tuzak — iki kütüphane aynı anda `IModelCustomizer` kurarsa biri diğerini ezer.** TickerQ'nun customizer'ı OpenIddict'inkini devre dışı bıraktı ve OpenIddict'in **dört tablosu migration'dan sessizce düştü**. Çözüm: OpenIddict entity'lerini `DbContextOptions.UseOpenIddict()` yerine `OnModelCreating` içinde açıkça kaydet (`MachtenDbContext.cs`).
+> **Tuzak — iki kütüphane aynı anda `IModelCustomizer` kurarsa biri diğerini ezer.** Bu projede gerçekten yaşandı: kendi customizer'ını kuran bir kütüphane OpenIddict'inkini devre dışı bıraktı ve OpenIddict'in **dört tablosu migration'dan sessizce düştü** — hata yok, sadece eksik tablo. Bu yüzden OpenIddict entity'leri `DbContextOptions.UseOpenIddict()` yerine `OnModelCreating` içinde açıkça kaydediliyor (`MachtenDbContext.cs`).
 
 ---
 

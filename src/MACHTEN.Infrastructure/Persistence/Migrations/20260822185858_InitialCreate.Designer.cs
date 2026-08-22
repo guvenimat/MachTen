@@ -13,8 +13,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MACHTEN.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(MachtenDbContext))]
-    [Migration("20260820192447_AddOrders")]
-    partial class AddOrders
+    [Migration("20260822185858_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -474,192 +474,6 @@ namespace MACHTEN.Infrastructure.Persistence.Migrations
                     b.ToTable("OpenIddictTokens", (string)null);
                 });
 
-            modelBuilder.Entity("TickerQ.Utilities.Entities.CronTickerEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Expression")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Function")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("InitIdentifier")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsSystemPaused")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<byte[]>("Request")
-                        .HasColumnType("varbinary(max)");
-
-                    b.Property<int>("Retries")
-                        .HasColumnType("int");
-
-                    b.PrimitiveCollection<string>("RetryIntervals")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Expression")
-                        .HasDatabaseName("IX_CronTickers_Expression");
-
-                    b.HasIndex("Function", "Expression")
-                        .HasDatabaseName("IX_Function_Expression");
-
-                    b.ToTable("CronTickers", "ticker");
-                });
-
-            modelBuilder.Entity("TickerQ.Utilities.Entities.CronTickerOccurrenceEntity<TickerQ.Utilities.Entities.CronTickerEntity>", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("CronTickerId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<long>("ElapsedTime")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ExceptionMessage")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ExecutedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ExecutionTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("LockHolder")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("LockedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("RetryCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SkippedReason")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CronTickerId")
-                        .HasDatabaseName("IX_CronTickerOccurrence_CronTickerId");
-
-                    b.HasIndex("ExecutionTime")
-                        .HasDatabaseName("IX_CronTickerOccurrence_ExecutionTime");
-
-                    b.HasIndex("CronTickerId", "ExecutionTime")
-                        .IsUnique()
-                        .HasDatabaseName("UQ_CronTickerId_ExecutionTime");
-
-                    b.HasIndex("Status", "ExecutionTime")
-                        .HasDatabaseName("IX_CronTickerOccurrence_Status_ExecutionTime");
-
-                    b.ToTable("CronTickerOccurrences", "ticker");
-                });
-
-            modelBuilder.Entity("TickerQ.Utilities.Entities.TimeTickerEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<long>("ElapsedTime")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ExceptionMessage")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ExecutedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("ExecutionTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Function")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("InitIdentifier")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("LockHolder")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("LockedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ParentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("Request")
-                        .HasColumnType("varbinary(max)");
-
-                    b.Property<int>("Retries")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RetryCount")
-                        .HasColumnType("int");
-
-                    b.PrimitiveCollection<string>("RetryIntervals")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("RunCondition")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SkippedReason")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExecutionTime")
-                        .HasDatabaseName("IX_TimeTicker_ExecutionTime");
-
-                    b.HasIndex("ParentId");
-
-                    b.HasIndex("Status", "ExecutionTime")
-                        .HasDatabaseName("IX_TimeTicker_Status_ExecutionTime");
-
-                    b.ToTable("TimeTickers", "ticker");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -735,27 +549,6 @@ namespace MACHTEN.Infrastructure.Persistence.Migrations
                     b.Navigation("Authorization");
                 });
 
-            modelBuilder.Entity("TickerQ.Utilities.Entities.CronTickerOccurrenceEntity<TickerQ.Utilities.Entities.CronTickerEntity>", b =>
-                {
-                    b.HasOne("TickerQ.Utilities.Entities.CronTickerEntity", "CronTicker")
-                        .WithMany()
-                        .HasForeignKey("CronTickerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CronTicker");
-                });
-
-            modelBuilder.Entity("TickerQ.Utilities.Entities.TimeTickerEntity", b =>
-                {
-                    b.HasOne("TickerQ.Utilities.Entities.TimeTickerEntity", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Parent");
-                });
-
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", b =>
                 {
                     b.Navigation("Authorizations");
@@ -766,11 +559,6 @@ namespace MACHTEN.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreAuthorization", b =>
                 {
                     b.Navigation("Tokens");
-                });
-
-            modelBuilder.Entity("TickerQ.Utilities.Entities.TimeTickerEntity", b =>
-                {
-                    b.Navigation("Children");
                 });
 #pragma warning restore 612, 618
         }

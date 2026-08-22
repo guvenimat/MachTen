@@ -10,8 +10,7 @@ namespace MACHTEN.Infrastructure.Persistence;
 
 /// <summary>
 /// Holds the application's own entities plus the ASP.NET Core Identity and
-/// OpenIddict schemas. TickerQ's tables are added separately by its model
-/// customizer at design time.
+/// OpenIddict schemas.
 /// </summary>
 public sealed class MachtenDbContext(DbContextOptions<MachtenDbContext> options)
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options), IApplicationDbContext
@@ -22,9 +21,10 @@ public sealed class MachtenDbContext(DbContextOptions<MachtenDbContext> options)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Registered explicitly rather than through DbContextOptions.UseOpenIddict():
-        // TickerQ installs its own IModelCustomizer, which would otherwise displace
-        // OpenIddict's and silently drop its tables from migrations.
+        // Registered explicitly rather than through DbContextOptions.UseOpenIddict().
+        // That route goes through an IModelCustomizer, and a second library
+        // installing its own displaces it — silently dropping OpenIddict's tables
+        // from the migration with no error. It has happened here before.
         modelBuilder.UseOpenIddict();
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(MachtenDbContext).Assembly);
