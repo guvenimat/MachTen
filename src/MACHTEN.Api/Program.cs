@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using Microsoft.Data.SqlClient;
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using Scalar.AspNetCore;
 using MACHTEN.Api;
 using MACHTEN.Api.Features.Auth;
 using MACHTEN.Api.Infrastructure.Auth;
@@ -246,9 +247,14 @@ builder.Services.AddOpenTelemetry()
 builder.Services.AddFastEndpoints();
 builder.Services.SwaggerDocument(o =>
 {
+    // Required when endpoints declare Version(n): without it FastEndpoints
+    // filters every versioned endpoint out and emits a document with schemas
+    // but no paths.
+    o.MaxEndpointVersion = 1;
     o.DocumentSettings = s =>
     {
         s.Title = "MACHTEN API";
+        s.DocumentName = "v1";
         s.Version = "v1";
     };
 });
@@ -306,7 +312,14 @@ app.UseFastEndpoints(c =>
     c.Serializer.Options.TypeInfoResolverChain.Insert(0, AppSerializerContext.Default);
 });
 app.MapTokenEndpoint();
-app.UseSwaggerGen();
+// NSwag still generates the OpenAPI document — it is what understands the
+// FastEndpoints endpoints — but the Swagger UI is replaced by Scalar. The
+// document path is set explicitly to the pattern Scalar expects by default.
+// NSwag still builds the OpenAPI document — it is what understands the
+// FastEndpoints endpoints — but UseOpenApi serves only the JSON, with no
+// Swagger UI. Scalar renders it, and reads this path by default.
+app.UseOpenApi(c => c.Path = "/openapi/{documentName}.json");
+app.MapScalarApiReference(o => o.WithTitle("MACHTEN API"));
 app.MapPrometheusScrapingEndpoint();
 app.UseTickerQ();
 app.MapHealthChecks("/health");

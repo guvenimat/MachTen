@@ -30,7 +30,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Ayağa kalkınca: **http://localhost:5000/swagger**
+Ayağa kalkınca: **http://localhost:5000/scalar**
 
 ```bash
 # Token al, korumalı endpoint'i çağır
