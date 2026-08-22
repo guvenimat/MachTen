@@ -1,16 +1,17 @@
+using ZLogger;
+
 namespace MACHTEN.Api.Infrastructure.Logging;
 
+/// <summary>
+/// Log messages generated at compile time by ZLogger's source generator.
+/// Nothing is formatted unless the level is enabled, and the generated code
+/// writes UTF8 straight to the sink rather than building an intermediate string.
+/// </summary>
 public static partial class LoggerMessageDefinitions
 {
-    [LoggerMessage(Level = LogLevel.Error, Message = "Unhandled exception processing request")]
+    [ZLoggerMessage(LogLevel.Error, "Unhandled exception processing request")]
     public static partial void LogUnhandledException(this ILogger logger, Exception exception);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Rate limit exceeded for policy: {PolicyName}")]
+    [ZLoggerMessage(LogLevel.Warning, "Rate limit exceeded for policy: {policyName}")]
     public static partial void LogRateLimitExceeded(this ILogger logger, string policyName);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Cache hit for key: {CacheKey}")]
-    public static partial void LogCacheHit(this ILogger logger, string cacheKey);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Cache miss for key: {CacheKey}")]
-    public static partial void LogCacheMiss(this ILogger logger, string cacheKey);
 }

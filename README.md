@@ -128,7 +128,9 @@ Dashboard hazır geliyor: throughput, p50/p95/p99 gecikme, hata oranı, status k
 
 **Correlation ID:** Pipeline'ın en başında çalışır, gelen `X-Correlation-ID` başlığını korur, yoksa trace id'den üretir ve logging scope'una koyar — böylece bir isteğin tüm log satırları birbirine bağlanır.
 
-**Logging:** `LoggerMessageDefinitions.cs` source-generated logging kullanır (`[LoggerMessage]`). Interpolated string ile loglamaya göre allocation yapmaz ve log seviyesi kapalıyken hiç çalışmaz.
+**Logging:** [ZLogger](https://github.com/Cysharp/ZLogger) — `LoggerMessageDefinitions.cs` içindeki `[ZLoggerMessage]` tanımları derleme zamanında üretilir; UTF8'e doğrudan yazar, ara string kurmaz. Çıktı her ortamda JSON (`docker compose logs | jq` ile okunur).
+
+> **Tuzak — `IncludeScopes` tek başına yetmiyor.** ZLogger'ın düz metin formatlayıcısı scope değerlerini basmıyor. Correlation id yanıt başlığında görünüp loglarda hiç çıkmıyordu; JSON formatlayıcıya geçilince düzeldi. Ölçmeden fark edilmezdi.
 
 > **Tuzak — panel eklemek metrik toplamak demek değil.** Grafana'ya bellek paneli koydum ama runtime metriklerini toplayan bir şey yoktu; panel sonsuza kadar boş kalacaktı. `OpenTelemetry.Instrumentation.Runtime` eklenmesi gerekti.
 

@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using ZLogger;
 using System.Threading.RateLimiting;
 using Microsoft.Data.SqlClient;
 using FastEndpoints;
@@ -8,6 +9,7 @@ using MACHTEN.Api;
 using MACHTEN.Api.Features.Auth;
 using MACHTEN.Api.Infrastructure.Auth;
 using MACHTEN.Api.Infrastructure.Errors;
+using MACHTEN.Api.Infrastructure.Logging;
 using MACHTEN.Api.Infrastructure.Observability;
 using MACHTEN.Application.Contracts.Persistence;
 using MACHTEN.Infrastructure.Identity;
@@ -37,6 +39,31 @@ if (args.Contains(HealthCheckProbe.Argument))
 }
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Logging (ZLogger) ──
+// Replaces the default console provider. ZLogger writes UTF8 directly and its
+// source generator formats at compile time, so a log call allocates nothing on
+// the hot path. IncludeScopes is required or the correlation id that
+// CorrelationIdMiddleware puts in scope never reaches the output.
+builder.Logging.ClearProviders();
+builder.Logging.AddZLoggerConsole(options =>
+{
+    options.IncludeScopes = true;
+
+    // JSON in every environment, including development. The plain text
+    // formatter ignores scope values even with IncludeScopes on, so the
+    // correlation id would reach the response header and never the logs -
+    // which defeats the point of having it. Pipe through `jq` to read locally.
+    options.UseJsonFormatter(formatter =>
+        formatter.IncludeProperties =
+            IncludeProperties.Timestamp |
+            IncludeProperties.LogLevel |
+            IncludeProperties.CategoryName |
+            IncludeProperties.Message |
+            IncludeProperties.Exception |
+            IncludeProperties.ParameterKeyValues |
+            IncludeProperties.ScopeKeyValues);
+});
 
 // ── EF Core ──
 builder.Services.AddDbContextPool<MachtenDbContext>(opts =>
@@ -189,6 +216,16 @@ builder.Services.AddHealthChecks()
 builder.Services.AddRateLimiter(opts =>
 {
     opts.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    opts.OnRejected = (context, _) =>
+    {
+        context.HttpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("RateLimiter")
+            .LogRateLimitExceeded(context.HttpContext.Request.Path);
+
+        return ValueTask.CompletedTask;
+    };
     // Applied by name on the endpoints that need it (see PlaceOrderEndpoint).
     // A policy nothing references is just configuration theatre.
     //
