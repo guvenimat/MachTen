@@ -30,13 +30,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-| Ne | Nerede |
-|---|---|
-| API | http://localhost:5000/api/v1/ping |
-| Swagger | http://localhost:5000/swagger |
-| Health check | http://localhost:5000/health |
-| Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 (admin / `.env`'deki şifre) |
+Ayağa kalkınca: **http://localhost:5000/swagger**
 
 ```bash
 # Token al, korumalı endpoint'i çağır
