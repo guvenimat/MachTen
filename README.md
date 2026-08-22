@@ -59,12 +59,16 @@ Süreç içi bellek + dağıtık cache'i tek arayüzün arkasında birleştirir.
 |---|---|
 | **Dosyalar** | `Application/Contracts/ICacheStore.cs`, `Application/Contracts/CacheKeys.cs`, `Infrastructure/Caching/CacheStore.cs` |
 | **Kullanım örneği** | `Application/Features/Orders/GetOrder/GetOrderHandler.cs` |
-| **Paketler** | `Microsoft.Extensions.Caching.Hybrid`, `Microsoft.Extensions.Caching.StackExchangeRedis` |
+| **Paketler** | `Microsoft.Extensions.Caching.Hybrid`, `Microsoft.Extensions.Caching.StackExchangeRedis`, `MemoryPack` |
 | **Altyapı** | Garnet (Redis protokolü uyumlu) — `docker-compose.yml` |
 
 **Neden Garnet:** Microsoft'un Redis protokolüyle uyumlu sunucusu; istemci kütüphaneleri aynen çalışır, tek satır kod değişmeden Redis'le yer değiştirebilir.
 
 **Neden `ICacheStore` soyutlaması:** `HybridCache` doğrudan Application katmanında kullanılsaydı, use case'ler bir altyapı tipine bağlanırdı. Arayüz sayesinde Application katmanı cache'in nerede olduğunu bilmez.
+
+**Serileştirme:** Cache girdileri JSON yerine [MemoryPack](https://github.com/Cysharp/MemoryPack) ile ikili olarak yazılıyor — formatter'lar derleme zamanında üretiliyor, reflection yok.
+
+> **Tuzak — serializer sessizce JSON'a düşer.** Bir tipi sahiplenen serializer yoksa HybridCache kendi reflection tabanlı JSON'ına geri döner ve **hiçbir şey hata vermez**; "cache çalışıyor" testleri iki durumda da geçer. İlk denemede `IHybridCacheSerializerFactory` yazdım, `MemoryPackFormatterProvider.IsRegistered<T>()` tip ilk kez serileştirilene kadar `false` döndüğü için factory her tipi reddetti ve her yazma JSON'a düştü. Bu yüzden serializer'lar artık `Program.cs`'de **tip tip açıkça** kaydediliyor ve `CacheSerializerRegistrationTests` DI'dan gerçekten MemoryPack çıktığını doğruluyor.
 
 > **Tuzak — cache anahtarları tek yerde.** `CacheKeys.cs` var çünkü yazma yolunun invalidate ettiği anahtarla okuma yolunun ürettiği anahtar farklı yazılırsa, hata sessizdir: cache asla temizlenmez, veri bayat kalır ve hiçbir test patlamaz.
 

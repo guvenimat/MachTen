@@ -13,6 +13,7 @@ using MACHTEN.Api.Infrastructure.Logging;
 using MACHTEN.Api.Infrastructure.Observability;
 using MACHTEN.Application.Contracts.Persistence;
 using MACHTEN.Infrastructure.Identity;
+using MACHTEN.Infrastructure.Caching;
 using MACHTEN.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -24,6 +25,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using JasperFx.CodeGeneration.Model;
+using MACHTEN.Application.Features.Orders.GetOrder;
 using MACHTEN.Application.Features.Orders.PlaceOrder;
 using MACHTEN.Domain.Events;
 using Wolverine;
@@ -192,7 +194,10 @@ builder.Services.AddHybridCache(opts =>
         Expiration = TimeSpan.FromMinutes(5),
         LocalCacheExpiration = TimeSpan.FromMinutes(1)
     };
-});
+})
+// Cached types are listed explicitly, the same way SerializerContext lists
+// its JSON types. Anything not named here falls back to HybridCache's JSON.
+.AddSerializer<OrderDto, MemoryPackCacheSerializer<OrderDto>>();
 builder.Services.AddSingleton<MACHTEN.Application.Contracts.ICacheStore, MACHTEN.Infrastructure.Caching.CacheStore>();
 
 // ── Global Exception Handling ──
