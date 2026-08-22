@@ -21,6 +21,8 @@
             "**/obj/**",
             "**/.vs/**",
             "**/.git/**",
+            "**/BenchmarkDotNet.Artifacts/**",
+            "**/TestResults/**",
             ".env"
           ]
         }

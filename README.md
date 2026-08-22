@@ -12,7 +12,7 @@
 
 ```bash
 dotnet new install ./MachTen
-dotnet new machten -n SiparisServisi
+dotnet new machten -n KendiServisim
 ```
 
 **2. Tek tek yapıları başka projelere taşımak.** Asıl tasarım hedefi bu. Her altyapı parçası — cache, arka plan işleri, auth, outbox, observability — **kendi başına sökülüp taşınabilecek** şekilde ayrılmış ve aşağıdaki [Yapı kataloğu](#yapı-kataloğu)'nda dosya yollarıyla, tercih gerekçesiyle ve karşılaştığım tuzaklarla belgelenmiş.

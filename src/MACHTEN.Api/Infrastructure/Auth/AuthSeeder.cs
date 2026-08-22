@@ -39,7 +39,7 @@ public sealed class AuthSeeder(IServiceProvider services, IConfiguration configu
         {
             ClientId = clientId,
             ClientSecret = configuration["Auth:Seed:ClientSecret"],
-            DisplayName = "MachTen sample client",
+            DisplayName = "Machten sample client",
             Permissions =
             {
                 Permissions.Endpoints.Token,

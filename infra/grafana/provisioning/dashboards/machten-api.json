@@ -1,6 +1,6 @@
 {
   "uid": "machten-api",
-  "title": "MachTen API",
+  "title": "Machten API",
   "tags": ["machten", "aspnetcore"],
   "timezone": "browser",
   "schemaVersion": 39,
