@@ -1,7 +1,5 @@
 using MACHTEN.Application.Contracts;
 using MACHTEN.Application.Contracts.Persistence;
-using MACHTEN.Application.Mapping;
-using Microsoft.EntityFrameworkCore;
 
 namespace MACHTEN.Application.Features.Orders.GetOrder;
 
@@ -12,7 +10,7 @@ public static class GetOrderHandler
 
     public static ValueTask<OrderDto?> HandleAsync(
         GetOrderQuery query,
-        IApplicationDbContext db,
+        IOrderRepository orders,
         ICacheStore cache,
         CancellationToken ct)
     {
@@ -21,15 +19,8 @@ public static class GetOrderHandler
         // stays a static lambda and allocates nothing per call.
         return cache.GetOrCreateAsync(
             CacheKeys.Order(query.OrderId),
-            (db, query.OrderId),
-            static async (state, token) =>
-            {
-                var order = await state.db.Orders
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(o => o.Id == state.OrderId, token);
-
-                return order is null ? null : OrderMapper.ToDto(order);
-            },
+            (orders, query.OrderId),
+            static (state, token) => new ValueTask<OrderDto?>(state.orders.GetAsync(state.OrderId, token)),
             expiration: CacheDuration,
             localExpiration: TimeSpan.FromSeconds(30),
             ct: ct);

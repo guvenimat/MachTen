@@ -74,6 +74,10 @@ builder.Services.AddDbContextPool<MachtenDbContext>(opts =>
 });
 builder.Services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<MachtenDbContext>());
 
+// Orders are read and written with Dapper.AOT rather than EF Core. EF still
+// owns the Identity and OpenIddict schemas plus migrations; see NOTES.md.
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+
 // ── Identity ──
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(opts =>
     {

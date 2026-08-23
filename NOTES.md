@@ -26,6 +26,12 @@ Bu projeyi kurarken çarptığım ve hiçbiri kütüphane dokümanından anlaş�
 
 **Wolverine yalnızca giriş assembly'sini tarar.** Handler'lar başka projedeyse `Discovery.IncludeAssembly` gerekir, yoksa "found no handlers" deyip her istek 500 döner.
 
+## Dapper.AOT
+
+**`CommandDefinition` aşırı yüklemeleri araya girilmez.** CancellationToken geçmenin Dapper'daki tek yolu o, ama Dapper.AOT onları **aday olarak bile saymıyor** ([DapperAOT#112](https://github.com/DapperLib/DapperAOT/issues/112)) — DAP005 bile çıkmaz, çünkü ortada "kapalı aday" yoktur. Sonuç: temiz derleme, yeşil testler ve hiç AOT olmayan bir veri yolu. Basit aşırı yüklemeler kullanılmalı; iptal `connection.OpenAsync(ct)` ile korunur.
+
+**Etkin olup olmadığını ölçmenin yolu:** `[module: DapperAot]`'u geçici kaldır ve DAP005'in kaç aday saydığına bak. Sayı beklediğin sorgu sayısına eşitse interception gerçekten çalışıyordur; hiç uyarı çıkmıyorsa sorguların tanınmıyor demektir.
+
 ## EF Core
 
 **İki kütüphane aynı anda `IModelCustomizer` kurarsa biri diğerini ezer.** Kendi customizer'ını kuran bir kütüphane OpenIddict'inkini devre dışı bıraktı ve OpenIddict'in dört tablosu migration'dan sessizce düştü. Bu yüzden OpenIddict entity'leri `OnModelCreating` içinde açıkça kaydediliyor.
