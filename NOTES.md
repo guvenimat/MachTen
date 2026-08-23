@@ -56,6 +56,9 @@ Bu projeyi kurarken çarptığım ve hiçbiri kütüphane dokümanından anlaş�
 
 ## Native AOT araştırması
 
+**FastEndpoints AOT'a engel değil — eksik olan `FastEndpoints.Generator`.** AOT binary'si "FastEndpoints was unable to find any endpoint declarations!" diye çökünce suçu framework'ün reflection tabanlı keşfine yıktım ve bunu csproj yorumuna yazdım; yanlış gerekçe orada durup kendini doğrulayan bir nota dönüştü. Gerçek sebep generator paketinin referans edilmemesiydi — o eklenince keşif derleme zamanına taşınıyor ve ILC'nin budayacağı tarama kalmıyor.
+
+
 Gerçek AOT binary'si üretilerek ölçüldü (boş API 15 MB, tüm yığınla 29 MB; çalıştı). Hiç `MissingMetadata`/`TypeLoad` hatası görülmedi.
 
 | Bileşen | Durum |

@@ -71,7 +71,7 @@ JSON farkı mütevazı ve allocation eşit — source generation'ın asıl gerek
 
 ## Bilinen sınırlar
 
-- **Native AOT kapalı** — geriye tek engel kaldı: EF Core hâlâ şemayı ve migration'ları üretiyor. Ölçüm sonuçları [NOTES.md](NOTES.md)'de.
+- **Native AOT kapalı** — iki engel kaldı: EF Core hâlâ şemayı üretiyor, `WolverineFx.RuntimeCompilation` da Roslyn taşıyor. Ölçüm sonuçları [NOTES.md](NOTES.md)'de.
 - **Refresh token ve OIDC discovery yok** — OpenIddict çıkarıldığında bilinçli olarak bırakıldı; token'lar 1 saatlik ve yenilenmiyor.
 - **Harici broker yok** — outbox dayanıklı yerel kuyruğa teslim ediyor; Kafka/RabbitMQ/NATS eklemek tek satırlık transport değişikliği.
 - **FastEndpoints** 2026'da bakım moduna geçebileceğini duyurdu; uzun ömür kritikse Minimal API + RDG.
