@@ -12,6 +12,7 @@ using MACHTEN.Api.Infrastructure.Errors;
 using MACHTEN.Api.Infrastructure.Logging;
 using MACHTEN.Api.Infrastructure.Observability;
 using MACHTEN.Application.Contracts.Persistence;
+using MACHTEN.Application.Contracts.Auth;
 using MACHTEN.Infrastructure.Identity;
 using MACHTEN.Infrastructure.Caching;
 using MACHTEN.Infrastructure.Persistence;
@@ -31,7 +32,6 @@ using MACHTEN.Domain.Events;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 using Wolverine.SqlServer;
-using static OpenIddict.Abstractions.OpenIddictConstants;
 
 // Container HEALTHCHECK path: probe /health and exit, without starting a host.
 if (args.Contains(HealthCheckProbe.Argument))
@@ -70,90 +70,38 @@ builder.Logging.AddZLoggerConsole(options =>
 builder.Services.AddDbContextPool<MachtenDbContext>(opts =>
 {
     opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-    opts.UseOpenIddict();
 });
-builder.Services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<MachtenDbContext>());
 
 // Orders are read and written with Dapper.AOT rather than EF Core. EF still
 // owns the Identity and OpenIddict schemas plus migrations; see NOTES.md.
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 
-// ── Identity ──
-builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(opts =>
-    {
-        opts.Password.RequiredLength = 8;
-        opts.User.RequireUniqueEmail = true;
-    })
-    .AddEntityFrameworkStores<MachtenDbContext>()
-    .AddDefaultTokenProviders();
+// ── Auth: users, clients and token issuance ──
+// OpenIddict and ASP.NET Core Identity are gone; their stores were EF Core and
+// EF is on its way out. What replaces them is deliberately small: two tables
+// read with Dapper, PBKDF2 hashing from Microsoft's PasswordHasher, and tokens
+// signed with the key below. No discovery document, no refresh flow.
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IApiClientRepository, ApiClientRepository>();
+builder.Services.AddSingleton<IPasswordHasher<string>, PasswordHasher<string>>();
 
-// Emit the claim types OpenIddict expects rather than the ASP.NET defaults.
-builder.Services.Configure<IdentityOptions>(opts =>
-{
-    opts.ClaimsIdentity.UserIdClaimType = Claims.Subject;
-    opts.ClaimsIdentity.UserNameClaimType = Claims.Name;
-    opts.ClaimsIdentity.RoleClaimType = Claims.Role;
-});
-
-// ── OpenIddict (authorization server) ──
-// Keys come from configuration rather than development certificates, so every
-// instance signs with the same material and token validation needs no metadata
-// discovery round-trip (which also makes it work under WebApplicationFactory).
-// OpenIddict signs JWT access tokens with an asymmetric key; the JWT Bearer
-// handler below validates using the public half of this same key.
-// Deliberately not disposed: the key must stay alive for the lifetime of the
-// application, since OpenIddict signs every token with it.
+// Signing key shared with the JWT Bearer handler, so validation needs no
+// metadata discovery - which is also what makes it work under
+// WebApplicationFactory.
+// Deliberately not disposed: it must outlive every token it signs.
 #pragma warning disable CA2000
 var rsa = RSA.Create();
 #pragma warning restore CA2000
 rsa.ImportRSAPrivateKey(Convert.FromBase64String(builder.Configuration["Auth:SigningKey"]!), out _);
 var signingKey = new RsaSecurityKey(rsa);
-var encryptionKey = new SymmetricSecurityKey(
-    Convert.FromBase64String(builder.Configuration["Auth:EncryptionKey"]!));
 var issuer = new Uri(builder.Configuration["Auth:Issuer"]!);
 
-builder.Services.AddOpenIddict()
-    .AddCore(opts => opts
-        .UseEntityFrameworkCore()
-        .UseDbContext<MachtenDbContext>())
-    .AddServer(opts =>
-    {
-        opts.SetTokenEndpointUris("connect/token");
-        opts.SetIssuer(issuer);
-
-        opts.AllowClientCredentialsFlow()
-            .AllowPasswordFlow()
-            .AllowRefreshTokenFlow();
-
-        opts.AddSigningKey(signingKey);
-        opts.AddEncryptionKey(encryptionKey);
-
-        // Access tokens stay readable so the JWT Bearer handler can validate
-        // them; refresh tokens remain encrypted.
-        opts.DisableAccessTokenEncryption();
-
-        opts.RegisterScopes(Scopes.OpenId, Scopes.Profile, Scopes.Roles, "api");
-
-        var aspNetCore = opts.UseAspNetCore().EnableTokenEndpointPassthrough();
-
-        // OpenIddict refuses plaintext HTTP by default. Only relax that outside
-        // production, where TLS terminates in front of the app.
-        if (!builder.Environment.IsProduction())
-        {
-            aspNetCore.DisableTransportSecurityRequirement();
-        }
-    });
+builder.Services.AddSingleton<ITokenIssuer>(_ => new TokenIssuer(
+    new SigningCredentials(signingKey, SecurityAlgorithms.RsaSha256),
+    issuer.AbsoluteUri));
 
 // ── JWT Bearer (resource server) ──
-// AddIdentity above points the default challenge at its cookie handler, which
-// would redirect unauthenticated API callers to a login page that does not
-// exist (404 instead of 401). Pin every default back to bearer tokens.
-builder.Services.AddAuthentication(opts =>
-    {
-        opts.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-        opts.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        opts.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opts =>
     {
         opts.RequireHttpsMetadata = false;
@@ -170,8 +118,8 @@ builder.Services.AddAuthentication(opts =>
             IssuerSigningKey = signingKey,
             ValidateAudience = false,
             ValidateLifetime = true,
-            NameClaimType = Claims.Name,
-            RoleClaimType = Claims.Role
+            NameClaimType = ClaimNames.Name,
+            RoleClaimType = "role"
         };
     });
 
@@ -243,7 +191,7 @@ builder.Services.AddRateLimiter(opts =>
     {
         var partitionKey =
             httpContext.Request.Headers["X-Client-Id"].FirstOrDefault()
-            ?? httpContext.User.FindFirst(Claims.Subject)?.Value
+            ?? httpContext.User.FindFirst(ClaimNames.Subject)?.Value
             ?? httpContext.Connection.RemoteIpAddress?.ToString()
             ?? "anonymous";
 

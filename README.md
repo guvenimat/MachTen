@@ -24,12 +24,12 @@ dotnet new machten -n KendiServisim
 | | |
 |---|---|
 | **HTTP** | FastEndpoints + FluentValidation, `api/v1/...` versiyonlama, Scalar |
-| **Veri** | EF Core + SQL Server, Mapperly ile eşleme |
+| **Veri** | Dapper.AOT + SQL Server (EF yalnızca migration üretiyor), Mapperly ile eşleme |
 | **Cache** | HybridCache (L1 bellek + L2 Garnet), MemoryPack ile ikili serileştirme |
-| **Auth** | OpenIddict + ASP.NET Core Identity, JWT Bearer doğrulama |
+| **Auth** | Kendi token üretimi (RS256) + JWT Bearer doğrulama, PBKDF2 şifre hash'i |
 | **Mesajlaşma** | Wolverine, SQL Server üzerinde transactional outbox |
 | **Observability** | OpenTelemetry → Prometheus, ZLogger (JSON), correlation ID |
-| **Test** | TUnit, Testcontainers, NetArchTest — 35 test |
+| **Test** | TUnit, Testcontainers, NetArchTest — 36 test |
 
 ## Mimari
 
@@ -71,7 +71,8 @@ JSON farkı mütevazı ve allocation eşit — source generation'ın asıl gerek
 
 ## Bilinen sınırlar
 
-- **Native AOT kapalı** — tek engel EF Core; ölçüm sonuçları [NOTES.md](NOTES.md)'de.
+- **Native AOT kapalı** — iki engel kaldı: EF Core hâlâ şemayı üretiyor, `WolverineFx.RuntimeCompilation` da Roslyn taşıyor. Ölçüm sonuçları [NOTES.md](NOTES.md)'de.
+- **Refresh token ve OIDC discovery yok** — OpenIddict çıkarıldığında bilinçli olarak bırakıldı; token'lar 1 saatlik ve yenilenmiyor.
 - **Harici broker yok** — outbox dayanıklı yerel kuyruğa teslim ediyor; Kafka/RabbitMQ/NATS eklemek tek satırlık transport değişikliği.
 - **FastEndpoints** 2026'da bakım moduna geçebileceğini duyurdu; uzun ömür kritikse Minimal API + RDG.
 - `appsettings.json`'daki anahtarlar ve demo şifreler yalnızca geliştirme içindir.

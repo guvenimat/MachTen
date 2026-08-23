@@ -73,6 +73,21 @@ public class LayeringTests
         await AssertSuccess(result, "Use cases must be callable without a web host — that is what keeps them testable.");
     }
 
+    [Test]
+    public async Task Application_DoesNotDependOnEntityFrameworkCore()
+    {
+        // Orders and auth read through Dapper.AOT now, so the use cases have no
+        // reason to see EF. EF survives only in Infrastructure, where it owns
+        // the schema and generates migrations — and that is the last thing
+        // standing between this template and Native AOT.
+        var result = Types.InAssembly(Application)
+            .ShouldNot()
+            .HaveDependencyOn("Microsoft.EntityFrameworkCore")
+            .GetResult();
+
+        await AssertSuccess(result, "Application must stay free of EF Core.");
+    }
+
     private static async Task AssertSuccess(NetArchTest.Rules.TestResult result, string because)
     {
         await Assert.That(result.IsSuccessful)

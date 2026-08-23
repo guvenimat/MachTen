@@ -17,7 +17,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.3" />
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.3.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.3" />
-    <PackageReference Include="OpenIddict.AspNetCore" Version="7.6.0" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
     <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.15.0-beta.1" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
@@ -36,9 +36,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <!-- Native AOT is intentionally disabled: FastEndpoints' reflection-based endpoint
-         discovery is trimmed away by the ILC linker (see README "Notlar / bilinen kısıtlar").
-         ReadyToRun + TieredPGO are used instead for a faster cold start under JIT. -->
+    <!-- Native AOT is off for two remaining reasons, neither of them FastEndpoints:
+         EF Core still owns the schema, and WolverineFx.RuntimeCompilation drags in
+         Roslyn. FastEndpoints itself is AOT-clean once FastEndpoints.Generator moves
+         endpoint discovery to compile time. ReadyToRun + TieredPGO in the meantime. -->
     <PublishAot>false</PublishAot>
     <PublishReadyToRun>true</PublishReadyToRun>
     <TieredPGO>true</TieredPGO>
