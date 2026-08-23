@@ -23,13 +23,12 @@ public static class PlaceOrderHandler
     /// </summary>
     public static async Task<(PlaceOrderResponse Response, OrderPlaced Published)> HandleAsync(
         PlaceOrderCommand command,
-        IApplicationDbContext db,
+        IOrderRepository orders,
         CancellationToken ct)
     {
         var order = Order.Place(command.CustomerReference, new Money(command.Amount, command.Currency));
 
-        db.Orders.Add(order);
-        await db.SaveChangesAsync(ct);
+        await orders.InsertAsync(order, ct);
 
         var placed = order.DomainEvents.OfType<OrderPlaced>().Single();
         order.ClearDomainEvents();

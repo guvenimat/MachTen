@@ -5,7 +5,7 @@ using MACHTEN.Application.Features.Orders.GetOrder;
 
 namespace MACHTEN.Api.Features.Orders;
 
-public sealed class GetOrderEndpoint(IApplicationDbContext db, ICacheStore cache)
+public sealed class GetOrderEndpoint(IOrderRepository orders, ICacheStore cache)
     : EndpointWithoutRequest<OrderDto>
 {
     public override void Configure()
@@ -24,7 +24,7 @@ public sealed class GetOrderEndpoint(IApplicationDbContext db, ICacheStore cache
     {
         var id = Route<Guid>("id");
 
-        var order = await GetOrderHandler.HandleAsync(new GetOrderQuery(id), db, cache, ct);
+        var order = await GetOrderHandler.HandleAsync(new GetOrderQuery(id), orders, cache, ct);
 
         if (order is null)
         {
