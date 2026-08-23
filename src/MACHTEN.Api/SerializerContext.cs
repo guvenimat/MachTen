@@ -9,6 +9,8 @@ namespace MACHTEN.Api;
 
 [JsonSerializable(typeof(PingResponse))]
 [JsonSerializable(typeof(MeResponse))]
+[JsonSerializable(typeof(TokenResponse))]
+[JsonSerializable(typeof(TokenError))]
 [JsonSerializable(typeof(PlaceOrderCommand))]
 [JsonSerializable(typeof(PlaceOrderResponse))]
 [JsonSerializable(typeof(OrderDto))]

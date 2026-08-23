@@ -1,31 +1,27 @@
-using MACHTEN.Application.Contracts.Persistence;
 using MACHTEN.Domain.Entities;
-using MACHTEN.Infrastructure.Identity;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using MACHTEN.Infrastructure.Persistence.Schema;
 using Microsoft.EntityFrameworkCore;
-using OpenIddict.EntityFrameworkCore;
 
 namespace MACHTEN.Infrastructure.Persistence;
 
 /// <summary>
-/// Holds the application's own entities plus the ASP.NET Core Identity and
-/// OpenIddict schemas.
+/// EF Core is kept only to own the schema and generate migrations — every
+/// runtime read and write goes through Dapper.AOT. That is why the entities
+/// here are flat row shapes rather than the domain model.
+///
+/// The last step of the AOT migration replaces this with plain SQL scripts.
 /// </summary>
-public sealed class MachtenDbContext(DbContextOptions<MachtenDbContext> options)
-    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options), IApplicationDbContext
+public sealed class MachtenDbContext(DbContextOptions<MachtenDbContext> options) : DbContext(options)
 {
     public DbSet<Order> Orders => Set<Order>();
+
+    public DbSet<UserRow> Users => Set<UserRow>();
+
+    public DbSet<ApiClientRow> ApiClients => Set<ApiClientRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        // Registered explicitly rather than through DbContextOptions.UseOpenIddict().
-        // That route goes through an IModelCustomizer, and a second library
-        // installing its own displaces it — silently dropping OpenIddict's tables
-        // from the migration with no error. It has happened here before.
-        modelBuilder.UseOpenIddict();
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(MachtenDbContext).Assembly);
     }

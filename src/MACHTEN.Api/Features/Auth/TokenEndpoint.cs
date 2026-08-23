@@ -1,141 +1,120 @@
-using System.Security.Claims;
-using MACHTEN.Infrastructure.Identity;
-using Microsoft.AspNetCore;
-using Microsoft.AspNetCore.Authentication;
+using System.Text.Json.Serialization;
+using MACHTEN.Application.Contracts.Auth;
 using Microsoft.AspNetCore.Identity;
-using OpenIddict.Abstractions;
-using OpenIddict.Server.AspNetCore;
-using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace MACHTEN.Api.Features.Auth;
 
 /// <summary>
-/// OpenIddict token endpoint. Mapped as a minimal API rather than a
-/// FastEndpoint because it must sit at /connect/token, outside the "api"
-/// route prefix that OpenIddict advertises in its server configuration.
+/// OAuth2 token endpoint, hand-rolled in place of OpenIddict.
+///
+/// Supports client_credentials and password. There is no refresh flow and no
+/// discovery document: dropping OpenIddict traded those away for a surface
+/// small enough to read in one sitting and free of reflection.
+///
+/// Mapped as a minimal API so it sits at /connect/token, outside the "api"
+/// route prefix FastEndpoints applies.
 /// </summary>
 public static class TokenEndpoint
 {
     public static void MapTokenEndpoint(this WebApplication app)
     {
         app.MapPost("/connect/token", async (
-            HttpContext http,
-            UserManager<ApplicationUser> users,
-            SignInManager<ApplicationUser> signIn) =>
+            HttpRequest request,
+            IUserRepository users,
+            IApiClientRepository clients,
+            ITokenIssuer issuer,
+            IPasswordHasher<string> hasher,
+            CancellationToken ct) =>
         {
-            var request = http.GetOpenIddictServerRequest()
-                ?? throw new InvalidOperationException("The OpenID Connect request cannot be retrieved.");
-
-            if (request.IsClientCredentialsGrantType())
+            if (!request.HasFormContentType)
             {
-                // Machine-to-machine: the client itself is the subject.
-                var identity = new ClaimsIdentity(
-                    OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
-                    Claims.Name,
-                    Claims.Role);
-
-                identity.SetClaim(Claims.Subject, request.ClientId);
-                identity.SetClaim(Claims.Name, request.ClientId);
-                identity.SetScopes(request.GetScopes());
-                identity.SetDestinations(static _ => [Destinations.AccessToken]);
-
-                return Results.SignIn(
-                    new ClaimsPrincipal(identity),
-                    properties: null,
-                    OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+                return InvalidRequest("The token request must be form encoded.");
             }
 
-            if (request.IsPasswordGrantType())
+            var form = await request.ReadFormAsync(ct);
+            var grantType = form["grant_type"].ToString();
+
+            return grantType switch
             {
-                var user = await users.FindByNameAsync(request.Username!);
-                if (user is null)
-                    return InvalidGrant("The username/password couple is invalid.");
-
-                var result = await signIn.CheckPasswordSignInAsync(user, request.Password!, lockoutOnFailure: true);
-                if (!result.Succeeded)
-                    return InvalidGrant("The username/password couple is invalid.");
-
-                var principal = await signIn.CreateUserPrincipalAsync(user);
-                principal.SetScopes(request.GetScopes());
-                principal.SetDestinations(GetDestinations);
-
-                return Results.SignIn(
-                    principal,
-                    properties: null,
-                    OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
-            }
-
-            if (request.IsRefreshTokenGrantType())
-            {
-                var auth = await http.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
-                var principal = auth.Principal;
-
-                if (principal is null)
-                    return InvalidGrant("The refresh token is no longer valid.");
-
-                var user = await users.GetUserAsync(principal);
-                if (user is null || !await signIn.CanSignInAsync(user))
-                    return InvalidGrant("The user is no longer allowed to sign in.");
-
-                var refreshed = await signIn.CreateUserPrincipalAsync(user);
-                refreshed.SetScopes(principal.GetScopes());
-                refreshed.SetDestinations(GetDestinations);
-
-                return Results.SignIn(
-                    refreshed,
-                    properties: null,
-                    OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
-            }
-
-            return InvalidGrant("The specified grant type is not supported.");
+                "client_credentials" => await ClientCredentialsAsync(form, clients, issuer, hasher, ct),
+                "password" => await PasswordAsync(form, users, issuer, hasher, ct),
+                _ => InvalidRequest($"Unsupported grant_type '{grantType}'.")
+            };
         })
         .AllowAnonymous()
-        .WithTags("Auth")
         .ExcludeFromDescription();
     }
 
-    private static IResult InvalidGrant(string description) => Results.Forbid(
-        new AuthenticationProperties(new Dictionary<string, string?>
-        {
-            [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.InvalidGrant,
-            [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description
-        }),
-        [OpenIddictServerAspNetCoreDefaults.AuthenticationScheme]);
-
-    /// <summary>
-    /// Decides which token each claim is allowed to travel in. Claims default to
-    /// the access token only; identity claims also go to the identity token when
-    /// the matching scope was granted.
-    /// </summary>
-    private static IEnumerable<string> GetDestinations(Claim claim)
+    private static async Task<IResult> ClientCredentialsAsync(
+        IFormCollection form,
+        IApiClientRepository clients,
+        ITokenIssuer issuer,
+        IPasswordHasher<string> hasher,
+        CancellationToken ct)
     {
-        switch (claim.Type)
+        var clientId = form["client_id"].ToString();
+        var secret = form["client_secret"].ToString();
+
+        var client = await clients.FindAsync(clientId, ct);
+
+        // Same response whether the client is unknown or the secret is wrong,
+        // so the endpoint cannot be used to enumerate client ids.
+        if (client is null ||
+            hasher.VerifyHashedPassword(clientId, client.SecretHash, secret) == PasswordVerificationResult.Failed)
         {
-            case Claims.Name or Claims.PreferredUsername:
-                yield return Destinations.AccessToken;
-                if (claim.Subject!.HasScope(Scopes.Profile))
-                    yield return Destinations.IdentityToken;
-                yield break;
-
-            case Claims.Email:
-                yield return Destinations.AccessToken;
-                if (claim.Subject!.HasScope(Scopes.Email))
-                    yield return Destinations.IdentityToken;
-                yield break;
-
-            case Claims.Role:
-                yield return Destinations.AccessToken;
-                if (claim.Subject!.HasScope(Scopes.Roles))
-                    yield return Destinations.IdentityToken;
-                yield break;
-
-            // Never expose the security stamp.
-            case "AspNet.Identity.SecurityStamp":
-                yield break;
-
-            default:
-                yield return Destinations.AccessToken;
-                yield break;
+            return InvalidClient();
         }
+
+        var (token, expiresIn) = issuer.Issue(client.ClientId, client.ClientId, client.Scopes);
+        return Results.Ok(new TokenResponse(token, "Bearer", expiresIn, client.Scopes));
     }
+
+    private static async Task<IResult> PasswordAsync(
+        IFormCollection form,
+        IUserRepository users,
+        ITokenIssuer issuer,
+        IPasswordHasher<string> hasher,
+        CancellationToken ct)
+    {
+        var username = form["username"].ToString();
+        var password = form["password"].ToString();
+        var scope = form["scope"].ToString();
+
+        var user = await users.FindByEmailAsync(username, ct);
+
+        if (user is null ||
+            hasher.VerifyHashedPassword(username, user.PasswordHash, password) == PasswordVerificationResult.Failed)
+        {
+            return InvalidGrant("The username/password couple is invalid.");
+        }
+
+        var (token, expiresIn) = issuer.Issue(user.Id.ToString(), user.Email, scope);
+        return Results.Ok(new TokenResponse(token, "Bearer", expiresIn, scope));
+    }
+
+    // RFC 6749 error shapes: 400 for a bad request or grant, 401 for a client
+    // that failed to authenticate.
+    private static IResult InvalidRequest(string description) =>
+        Results.BadRequest(new TokenError("invalid_request", description));
+
+    private static IResult InvalidGrant(string description) =>
+        Results.BadRequest(new TokenError("invalid_grant", description));
+
+    private static IResult InvalidClient() =>
+        Results.Json(new TokenError("invalid_client", "Client authentication failed."), statusCode: 401);
 }
+
+/// <summary>
+/// RFC 6749 names the fields in snake_case, and clients depend on that exact
+/// spelling — the default camelCase would produce a token response nothing can
+/// read.
+/// </summary>
+public sealed record TokenResponse(
+    [property: JsonPropertyName("access_token")] string AccessToken,
+    [property: JsonPropertyName("token_type")] string TokenType,
+    [property: JsonPropertyName("expires_in")] int ExpiresIn,
+    [property: JsonPropertyName("scope")] string Scope);
+
+public sealed record TokenError(
+    [property: JsonPropertyName("error")] string Error,
+    [property: JsonPropertyName("error_description")] string ErrorDescription);
