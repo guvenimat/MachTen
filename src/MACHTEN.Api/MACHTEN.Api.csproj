@@ -28,7 +28,7 @@
     <PackageReference Include="WolverineFx" Version="6.29.1" />
     <PackageReference Include="WolverineFx.EntityFrameworkCore" Version="6.29.1" />
     <PackageReference Include="WolverineFx.RuntimeCompilation" Version="6.29.1" />
-    <PackageReference Include="WolverineFx.SqlServer" Version="6.29.1" />
+    <PackageReference Include="WolverineFx.SqlServer" Version="6.51.2" />
     <PackageReference Include="ZLogger" Version="2.5.10" />
   </ItemGroup>
 
