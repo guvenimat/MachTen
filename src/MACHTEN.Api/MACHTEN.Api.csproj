@@ -24,7 +24,7 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.15.0-beta.1" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.17.1" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.18.2" />
     <PackageReference Include="WolverineFx" Version="6.29.1" />
     <PackageReference Include="WolverineFx.EntityFrameworkCore" Version="6.29.1" />
     <PackageReference Include="WolverineFx.RuntimeCompilation" Version="6.29.1" />
