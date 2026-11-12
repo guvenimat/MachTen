@@ -13,7 +13,7 @@ RUN dotnet restore src/MACHTEN.Api/MACHTEN.Api.csproj -r linux-x64
 COPY src/ src/
 RUN dotnet publish src/MACHTEN.Api/MACHTEN.Api.csproj -c Release -r linux-x64 --self-contained false -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS final
 WORKDIR /app
 
 # The base image ships a non-root "app" user (uid 1654). Running as it means a
